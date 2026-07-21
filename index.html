@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Meus Jogos — Zerar</title>
+  <meta name="description" content="Lista de jogos pra zerar. Marque os que terminou." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0f0d16" />
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Zerar" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <h1>Meus Jogos</h1>
+      <button id="resetBtn" class="reset" title="Zerar progresso">limpar</button>
+    </div>
+
+    <div class="stats">
+      <div class="ring" id="ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="ring-label"><b id="doneCount">0</b><span>/ <span id="totalCount">0</span></span></div>
+      </div>
+      <div class="stat-lines">
+        <div class="stat-main"><b id="pct">0%</b> concluído</div>
+        <div class="stat-sub" id="hoursLine">0 h zeradas · 0 h restando</div>
+        <div class="bar"><i id="bar"></i></div>
+      </div>
+    </div>
+
+    <div class="filters" id="filters">
+      <button class="chip is-active" data-filter="all">Todos</button>
+      <button class="chip" data-filter="playing">Em andamento</button>
+      <button class="chip" data-filter="done">Zerados</button>
+      <button class="chip chip-re" data-filter="re">RESIDENT EVIL</button>
+      <button class="chip chip-buy" data-filter="buy">🛒 COMPRAR</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="shelf" id="shelf">
+      <div class="shelf-head"><span class="dot-live"></span> EM ANDAMENTO</div>
+      <div class="shelf-row" id="shelfRow"></div>
+      <p class="shelf-empty" id="shelfEmpty">segure e arraste um jogo pra cá 🎮</p>
+    </section>
+    <div class="grid" id="grid"></div>
+    <p class="empty" id="empty" hidden>Nada aqui 👀</p>
+  </main>
+
+  <footer class="foot">salvo neste dispositivo · funciona offline</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
