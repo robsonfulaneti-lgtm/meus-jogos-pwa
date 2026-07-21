@@ -1,6 +1,6 @@
 {
-  "name": "Meus Jogos — Zerar",
-  "short_name": "Zerar",
+  "name": "Games",
+  "short_name": "Games",
   "description": "Lista de jogos pra zerar. Marque os que terminou.",
   "start_url": "./",
   "scope": "./",

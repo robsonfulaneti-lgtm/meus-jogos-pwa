@@ -1,4 +1,4 @@
-const CACHE = 'zerar-v8';
+const CACHE = 'zerar-v9';
 const COVERS = ['alan-wake-2.jpg','re7.jpg','lara-croft-go.jpg','tr1.png','re-rev.jpg',
   'tr2.png','re0.jpg','uncharted-2.jpg','tr3.png','re1.jpg','uncharted-3.jpg','tr4.png',
   'gta3.jpg','re5.jpg','tr5.png','gta-vc.jpg','re6.jpg','tr6.png','mafia-3.jpg',
