@@ -25,7 +25,8 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    // só as versões antigas deste app: outros apps do mesmo domínio têm o cache deles
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k.startsWith('zerar-')).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
