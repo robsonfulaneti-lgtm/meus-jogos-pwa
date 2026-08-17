@@ -24,47 +24,38 @@ def make(size, maskable=False):
         img = bg
         d = ImageDraw.Draw(img)
 
-    cx = S * 0.44
     pad = 1.0 if maskable else 0.0
+    cx, cy = S * 0.5, S * (0.52 + pad * 0.01)
+    amber = (245, 166, 35)
 
-    # console silhouette: tall standing shape, flared top/bottom, pinched middle
-    y0, yM, y1 = S * (0.16 + pad*0.03), S * 0.50, S * (0.80 - pad*0.03)
-    wT, wM, wB = S * 0.135, S * 0.065, S * 0.165
+    # gamepad body: wide rounded bar + two rounded grips hanging below the ends
+    body_w, body_h = S * (0.72 - pad*0.06), S * 0.30
+    d.rounded_rectangle(
+        [cx - body_w/2, cy - body_h/2, cx + body_w/2, cy + body_h/2],
+        radius=body_h*0.5, fill=amber
+    )
+    grip_r = body_h * 0.5
+    for side in (-1, 1):
+        gx = cx + side * body_w/2 * 0.86
+        d.ellipse([gx - grip_r, cy + body_h*0.05, gx + grip_r, cy + body_h*0.05 + grip_r*1.7], fill=amber)
 
-    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ld = ImageDraw.Draw(layer)
-    poly = [
-        (cx - wT, y0), (cx - wM, yM), (cx - wB, y1),
-        (cx + wB, y1), (cx + wM, yM), (cx + wT, y0),
-    ]
-    ld.polygon(poly, fill=(232, 228, 240, 255))
-    # soften corners with a blur-free rounding: draw small circles at the joints
-    for (px, py) in poly:
-        rr = S * 0.02
-        ld.ellipse([px - rr, py - rr, px + rr, py + rr], fill=(232, 228, 240, 255))
+    # d-pad, left side
+    dpx, dpy = cx - body_w*0.27, cy
+    dl, dt = S * 0.075, S * 0.028
+    d.rounded_rectangle([dpx - dl, dpy - dt, dpx + dl, dpy + dt], radius=dt*0.5, fill=(20, 17, 28))
+    d.rounded_rectangle([dpx - dt, dpy - dl, dpx + dt, dpy + dl], radius=dt*0.5, fill=(20, 17, 28))
 
-    layer = layer.rotate(-5, resample=Image.BICUBIC, center=(cx, (y0 + y1) / 2))
-    img.paste(layer, (0, 0), layer)
-    d = ImageDraw.Draw(img)
-
-    # oval base
-    base_w, base_h = S * 0.30, S * 0.045
-    base_cy = y1 + S * 0.05
-    d.ellipse([cx - base_w/2, base_cy - base_h/2, cx + base_w/2, base_cy + base_h/2],
-              fill=(120, 114, 138))
-
-    # amber accent stripe + two small dot details (evoke buttons/vents)
-    d.line([(cx - S*0.01, y0 + S*0.05), (cx - S*0.01, y1 - S*0.05)],
-           fill=(245, 166, 35), width=int(S * 0.018))
-    for dy in (0.30, 0.38):
-        rr = S * 0.012
-        px, py = cx + wB*0.35, y1 - (y1 - yM) * (1 - dy)
-        d.ellipse([px - rr, py - rr, px + rr, py + rr], fill=(20, 17, 28))
+    # face buttons, right side
+    br = S * 0.032
+    bcx, bcy = cx + body_w*0.27, cy
+    off = S * 0.075
+    for dx, dy in [(0, -off), (off, 0), (0, off), (-off, 0)]:
+        d.ellipse([bcx+dx-br, bcy+dy-br, bcx+dx+br, bcy+dy+br], fill=(20, 17, 28))
 
     # small green check badge, top-right
     if not maskable:
-        rad = S * 0.115
-        bx, by = S * 0.83, S * 0.185
+        rad = S * 0.135
+        bx, by = S * 0.82, S * 0.20
         d.ellipse([bx - rad, by - rad, bx + rad, by + rad], fill=(46, 213, 115))
         lw = int(S * 0.03)
         p1 = (bx - rad*0.45, by + rad*0.02)

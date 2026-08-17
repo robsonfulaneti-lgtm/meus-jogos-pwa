@@ -89,8 +89,19 @@ h1{font-size:22px;margin:0;letter-spacing:.2px}
   -webkit-tap-highlight-color:transparent;
 }
 .buy-actions .btn-buy{color:var(--green)}
+.buy-actions .btn-del-buy{color:#e05656;flex:0 0 40px}
 .buy-actions button:active{background:rgba(255,255,255,.07)}
 .card .tag-series:empty,.card .badge-time:empty{display:none}
+
+/* botão excluir */
+.btn-del{
+  position:absolute;top:8px;left:8px;z-index:3;width:28px;height:28px;border-radius:50%;
+  background:rgba(10,8,4,.72);border:1px solid rgba(255,255,255,.15);color:#fff;
+  font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s ease,transform .15s ease;
+}
+.btn-del:active{background:rgba(214,48,49,.9);transform:scale(.9)}
+.card.mini .btn-del{display:none}
 
 /* ---------- grid ---------- */
 main{padding:14px var(--pad) 40px;max-width:900px;margin:0 auto}
@@ -149,10 +160,67 @@ body.dragging .shelf{
   position:relative;border-radius:var(--radius);overflow:hidden;cursor:pointer;
   background:var(--card);border:1px solid var(--line);
   display:flex;flex-direction:column;padding:0;text-align:left;color:var(--text);
-  transition:transform .12s ease, border-color .2s ease;
+  transition:transform .12s ease, border-color .2s ease, box-shadow .25s ease;
   -webkit-tap-highlight-color:transparent;user-select:none;
+  animation:card-in .38s cubic-bezier(.2,.8,.3,1) both;
 }
 .card:active{transform:scale(.97)}
+@media (hover:hover){
+  .card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 26px rgba(139,92,246,.22)}
+  .card.status-playing:hover{border-color:var(--amber);box-shadow:0 10px 26px rgba(245,166,35,.25)}
+  .card.status-done:hover{border-color:var(--green);box-shadow:0 10px 26px rgba(46,213,115,.22)}
+}
+.card.status-playing{box-shadow:0 0 0 1px rgba(245,166,35,.18), 0 6px 18px rgba(245,166,35,.12)}
+.card.status-done{box-shadow:0 0 0 1px rgba(46,213,115,.16), 0 6px 18px rgba(46,213,115,.10)}
+
+@keyframes card-in{
+  from{opacity:0;transform:translateY(10px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@media (prefers-reduced-motion: reduce){
+  .card{animation:none}
+}
+/* leve efeito cascata ao entrar */
+.grid .card:nth-child(1){animation-delay:0ms}
+.grid .card:nth-child(2){animation-delay:25ms}
+.grid .card:nth-child(3){animation-delay:50ms}
+.grid .card:nth-child(4){animation-delay:75ms}
+.grid .card:nth-child(5){animation-delay:100ms}
+.grid .card:nth-child(6){animation-delay:125ms}
+.grid .card:nth-child(7){animation-delay:150ms}
+.grid .card:nth-child(8){animation-delay:175ms}
+.grid .card:nth-child(9){animation-delay:200ms}
+.grid .card:nth-child(n+10){animation-delay:220ms}
+
+/* confete */
+.confetti-piece{
+  position:fixed;top:0;left:0;width:8px;height:10px;pointer-events:none;z-index:500;
+  will-change:transform,opacity;
+  animation:confetti-fall var(--dur,900ms) cubic-bezier(.15,.8,.35,1) forwards;
+}
+@keyframes confetti-fall{
+  0%{transform:translate(var(--x0),var(--y0)) rotate(0deg) scale(1);opacity:1}
+  100%{transform:translate(calc(var(--x0) + var(--dx)),calc(var(--y0) + var(--dy))) rotate(var(--rot)) scale(.6);opacity:0}
+}
+@media (prefers-reduced-motion: reduce){
+  .confetti-piece{display:none}
+}
+
+/* fundo com partículas sutis */
+.bg-fx{position:fixed;inset:0;overflow:hidden;z-index:0;pointer-events:none}
+.bg-fx span{
+  position:absolute;border-radius:50%;filter:blur(40px);
+  animation:float-particle linear infinite;
+}
+@keyframes float-particle{
+  0%{transform:translateY(0) translateX(0)}
+  50%{transform:translateY(-34px) translateX(14px)}
+  100%{transform:translateY(0) translateX(0)}
+}
+@media (prefers-reduced-motion: reduce){
+  .bg-fx{display:none}
+}
+.top, main{position:relative;z-index:1}
 .cover{position:relative;aspect-ratio:2/3;overflow:hidden}
 .card img{
   position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
@@ -211,6 +279,57 @@ body.dragging .shelf{
 @media (max-width:380px){
   .grid{grid-template-columns:repeat(2,1fr)}
 }
+
+/* botão flutuante + adicionar */
+.fab{
+  position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:60;
+  width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#6d3ff0);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 10px 26px rgba(139,92,246,.45);
+  transition:transform .15s ease,box-shadow .15s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.fab:active{transform:scale(.92)}
+
+/* modal adicionar jogo */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;background:rgba(6,5,10,.72);backdrop-filter:blur(3px);
+  display:flex;align-items:flex-end;justify-content:center;
+  animation:overlay-in .2s ease both;
+}
+@keyframes overlay-in{from{opacity:0}to{opacity:1}}
+.modal-card{
+  width:100%;max-width:480px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:20px 20px 0 0;padding:20px var(--pad) calc(20px + env(safe-area-inset-bottom));
+  max-height:88vh;overflow-y:auto;
+  animation:modal-in .25s cubic-bezier(.2,.8,.3,1) both;
+}
+@media (min-width:560px){
+  .modal-overlay{align-items:center}
+  .modal-card{border-radius:20px;max-height:80vh}
+}
+@keyframes modal-in{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-card h2{margin:0 0 16px;font-size:18px}
+.field{display:block;margin-bottom:14px;font-size:13px;color:var(--muted)}
+.field span{display:block;margin-bottom:6px;font-weight:600}
+.field input[type="text"],.field select{
+  width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);font-size:14px;
+}
+.field input[type="file"]{
+  width:100%;font-size:12.5px;color:var(--muted);
+}
+.photo-preview{margin-top:10px;width:100%;max-width:160px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.photo-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.modal-actions{display:flex;gap:10px;margin-top:6px}
+.modal-actions button{
+  flex:1;padding:13px;border-radius:12px;border:0;font-weight:700;font-size:14px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-modal-cancel{background:var(--card);color:var(--muted);border:1px solid var(--line) !important}
+.btn-modal-save{background:linear-gradient(135deg,var(--accent),#6d3ff0);color:#fff}
+.btn-modal-save:active,.btn-modal-cancel:active{transform:scale(.97)}
 
 /* toast */
 #toast{

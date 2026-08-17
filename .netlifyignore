@@ -3,7 +3,7 @@ cloudflared.exe
 .claude/
 start.ps1
 free-ps5-icon-svg-download-png-2113998.webp
-
-# Local Netlify folder
-.netlify
-_site/
+generate-icons.py
+download-covers.ps1
+download-covers-re.ps1
+.git/

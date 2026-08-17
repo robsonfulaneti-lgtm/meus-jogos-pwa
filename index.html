@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="bg-fx" id="bgFx" aria-hidden="true"></div>
   <header class="top">
     <div class="top-row">
       <h1>Meus Jogos</h1>
@@ -56,6 +57,51 @@
   </main>
 
   <footer class="foot">salvo neste dispositivo · funciona offline</footer>
+
+  <button id="fabAdd" class="fab" type="button" aria-label="Adicionar jogo">
+    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+  </button>
+
+  <div id="addOverlay" class="modal-overlay" hidden>
+    <form id="addForm" class="modal-card">
+      <h2>Adicionar jogo</h2>
+
+      <label class="field">
+        <span>Nome do jogo *</span>
+        <input type="text" id="addTitle" placeholder="Ex: Elden Ring" required maxlength="80" />
+      </label>
+
+      <label class="field">
+        <span>Foto</span>
+        <input type="file" id="addPhoto" accept="image/*" capture="environment" />
+        <div class="photo-preview" id="addPreview" hidden><img alt="" /></div>
+      </label>
+
+      <label class="field">
+        <span>Adicionar em</span>
+        <select id="addCategory">
+          <option value="main">Lista principal (Todos)</option>
+          <option value="re">Coleção Resident Evil</option>
+          <option value="buy">Lista de compras</option>
+        </select>
+      </label>
+
+      <label class="field" id="fieldHours">
+        <span>Duração estimada (opcional)</span>
+        <input type="text" id="addNote" placeholder="Ex: ~10-12h" maxlength="20" />
+      </label>
+
+      <label class="field" id="fieldPrice" hidden>
+        <span>Preço em R$ (opcional)</span>
+        <input type="text" inputmode="decimal" id="addPrice" placeholder="Ex: 199,90" />
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" id="addCancel" class="btn-modal-cancel">Cancelar</button>
+        <button type="submit" class="btn-modal-save">Adicionar</button>
+      </div>
+    </form>
+  </div>
 
   <script src="app.js"></script>
 </body>
