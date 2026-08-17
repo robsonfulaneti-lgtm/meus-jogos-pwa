@@ -298,6 +298,7 @@ body.dragging .shelf{
   display:flex;align-items:flex-end;justify-content:center;
   animation:overlay-in .2s ease both;
 }
+.modal-overlay[hidden]{display:none}
 @keyframes overlay-in{from{opacity:0}to{opacity:1}}
 .modal-card{
   width:100%;max-width:480px;background:var(--bg2);border:1px solid var(--line);
@@ -312,6 +313,7 @@ body.dragging .shelf{
 @keyframes modal-in{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-card h2{margin:0 0 16px;font-size:18px}
 .field{display:block;margin-bottom:14px;font-size:13px;color:var(--muted)}
+.field[hidden]{display:none}
 .field span{display:block;margin-bottom:6px;font-weight:600}
 .field input[type="text"],.field select{
   width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);
