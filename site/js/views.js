@@ -18,7 +18,8 @@ const plats  = M => M.games.filter(g => g.status === 'platinum').sort((a, b) => 
 const isNear = g => g.status !== 'platinum' && hasPlatDef(g) && g.trophies.progress >= 50;
 const near   = M => M.games.filter(isNear).sort(by.progress);
 const queue  = M => M.games.filter(g => g.status === 'never').sort((a, b) => b.want - a.want || (a.source === 'lista') - (b.source === 'lista') || by.name(a, b));
-const isWanted = g => g.want && (g.status === 'never' || g.status === 'started');
+const canZerar = g => g.status !== 'platinum' && g.status !== 'complete';
+const isWanted = g => g.want && canZerar(g);
 const wanted = M => M.games.filter(isWanted).sort((a, b) => b.wantAt - a.wantAt);
 const totalMinutes = M => M.games.reduce((s, g) => s + (g.playMinutes || 0), 0);
 const pill = (icon, text) => `<span class="pill">${icon}${text}</span>`;
@@ -35,7 +36,7 @@ function section(title, body, { count, href, cls = '', sub = '' } = {}){
 const rail = (title, list, href, sub) => list.length
   ? section(title, `<div class="rail-row">${list.slice(0, 16).map(gameCard).join('')}</div>`, { count: list.length, href, sub })
   : '';
-const wantRail = M => rail('⭐ Quero jogar', wanted(M), '#/biblioteca?f=want', 'Os jogos que você escolheu da sua fila');
+const wantRail = M => rail('⭐ Quero zerar', wanted(M), '#/biblioteca?f=want', 'Os jogos que você escolheu terminar');
 
 function connectCard(){
   return `<section class="glass connect reveal" style="margin-top:22px">
@@ -82,10 +83,11 @@ export function home(M){
         ${stat(`<span style="color:var(--accent-2);display:block;width:40px;height:40px">${ICON.clock}</span>`, Math.round(totalMinutes(M) / 60), 'Horas jogadas', 'rgba(0,209,255,.25)')}
         ${stat(`<span style="color:var(--warn);display:block;width:40px;height:40px">${ICON.book}</span>`, never, 'Nunca jogados', 'rgba(255,181,71,.28)')}
       </div>
+      ${retroTeaser(M)}
       ${rail('Jogados recentemente', pl, '#/biblioteca?f=playing')}
       <div id="wantSlot">${wantRail(M)}</div>
       ${rail('Quase platinando', near(M), '#/biblioteca?f=near')}
-      ${rail('Nunca jogados', queue(M), '#/biblioteca?f=never', 'Toque no ＋ dos que você quer jogar')}
+      ${rail('Nunca jogados', queue(M), '#/biblioteca?f=never', 'Toque no ＋ pra colocar em "Quero zerar"')}
       ${rail('Platinas recentes', plats(M), '#/platinas')}
     `,
     mount(root, ctx){
@@ -123,31 +125,38 @@ function heroCard(g){
 
 // ================= BIBLIOTECA =================
 const LIB = { f: 'all', q: '', s: 'recent', p: '' };
-const FILTERS = [
-  ['all',      'Todos',             () => true],
-  ['want',     '⭐ Quero jogar',     isWanted],
-  ['never',    'Nunca jogados',     g => g.status === 'never'],
-  ['playing',  'Em andamento',      g => g.status === 'playing' || g.status === 'started'],
-  ['near',     'Quase platinando',  isNear],
-  ['platinum', 'Platinados',        g => g.status === 'platinum'],
-  ['complete', '100% sem platina',  g => g.status === 'complete'],
+const TABS = [
+  ['all',      'Todos',          () => true,                                              'Tudo que está na sua conta, mais a sua lista antiga'],
+  ['want',     '⭐ Quero zerar',  isWanted,                                                'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
+  ['playing',  'Jogando',        g => g.status === 'playing' || g.status === 'started',   'Já abriu, ainda não platinou'],
+  ['never',    'Nunca jogados',  g => g.status === 'never',                               'Estão na sua conta, mas você nunca abriu'],
+  ['platinum', 'Platinados',     g => g.status === 'platinum' || g.status === 'complete', 'Platinados ou 100%'],
 ];
-const SORTS = [['recent', 'Recentes'], ['hours', 'Mais jogados'], ['progress', 'Progresso'], ['rare', 'Platina mais rara'], ['diff', 'Mais difíceis'], ['name', 'Nome (A–Z)']];
+const SORTS = [['recent', 'Recentes'], ['hours', 'Mais jogados'], ['progress', 'Mais perto da platina'], ['rare', 'Platina mais rara'], ['diff', 'Mais difíceis'], ['name', 'Nome (A–Z)']];
+// "Nunca jogados" separado pela origem, pra não misturar o que você comprou com o que veio no Plus
+const NEVER_GROUPS = [
+  ['🛒 Comprados por você', g => g.source === 'psn' && !g.plus],
+  ['➕ Resgatados no PS Plus', g => g.source === 'psn' && g.plus],
+  ['📝 Da sua lista antiga', g => g.source === 'lista'],
+];
 
 function libList(M){
-  const f = (FILTERS.find(x => x[0] === LIB.f) || FILTERS[0])[2];
+  const f = (TABS.find(x => x[0] === LIB.f) || TABS[0])[2];
   const q = LIB.q.trim().toLowerCase();
+  const sort = LIB.f === 'never' && LIB.s === 'recent' ? by.name : (by[LIB.s] || by.recent);
   return M.games
     .filter(f)
     .filter(g => !q || g.name.toLowerCase().includes(q))
     .filter(g => !LIB.p || g.platforms?.includes(LIB.p))
-    .sort(by[LIB.s] || by.recent);
+    .sort(LIB.f === 'want' && LIB.s === 'recent' ? (a, b) => b.wantAt - a.wantAt : sort);
 }
 
 export function library(M, params){
-  if (params.f) LIB.f = params.f;
+  if (params.f) LIB.f = TABS.some(t => t[0] === params.f) ? params.f : 'all';
   const plats = [...new Set(M.games.flatMap(g => g.platforms || []))].sort();
   const list = libList(M);
+  const tab = ([v, l, fn]) => `<button class="lib-tab ${v === 'want' ? 'want' : ''} ${v === LIB.f ? 'on' : ''}" data-f="${v}" role="tab" aria-selected="${v === LIB.f}">${l} <b>${M.games.filter(fn).length}</b></button>`;
+  const opt = (group, v, l, cur) => `<button class="chip ${v === cur ? 'on' : ''}" data-${group}="${esc(v)}">${esc(l)}</button>`;
   return {
     wall: list[0]?.hero || list[0]?.cover,
     html: `
@@ -155,37 +164,68 @@ export function library(M, params){
         <h1 class="page-title">Biblioteca</h1>
         <div class="page-sub">${M.games.length} jogos · ${fmtH(totalMinutes(M))} de jogo registradas</div>
       </div></div>
-      <div class="glass toolbar">
+      <div class="lib-tabs" id="libF" role="tablist">${TABS.map(tab).join('')}</div>
+      <div class="lib-bar">
         <label class="search">${ICON.search}<input id="libQ" type="search" placeholder="Buscar jogo…" value="${esc(LIB.q)}" autocomplete="off"></label>
-        <select class="select" id="libS" aria-label="Ordenar">${SORTS.map(([v, l]) => `<option value="${v}" ${v === LIB.s ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <select class="select" id="libP" aria-label="Plataforma"><option value="">Todas plataformas</option>${plats.map(p => `<option ${p === LIB.p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
-        <div class="chips" id="libF">${FILTERS.map(([v, l, fn]) => `<button class="chip ${v === LIB.f ? 'on' : ''}" data-f="${v}">${l} <span>${M.games.filter(fn).length}</span></button>`).join('')}</div>
+        <button class="icon-btn" id="libOpts" aria-expanded="false" aria-controls="libPanel" title="Ordenar e filtrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          <span class="dot" ${LIB.s !== 'recent' || LIB.p ? '' : 'hidden'}></span>
+        </button>
       </div>
-      <div class="grid" id="libGrid"></div>`,
+      <div class="glass lib-opts" id="libPanel" hidden>
+        <div><div class="ix-lbl" style="margin-bottom:8px">Ordenar por</div>
+          <div class="chips" id="libS">${SORTS.map(([v, l]) => opt('s', v, l, LIB.s)).join('')}</div></div>
+        <div><div class="ix-lbl" style="margin-bottom:8px">Plataforma</div>
+          <div class="chips" id="libP">${opt('p', '', 'Todas', LIB.p)}${plats.map(p => opt('p', p, p, LIB.p)).join('')}</div></div>
+      </div>
+      <p class="lib-hint" id="libHint"></p>
+      <div id="libGrid"></div>`,
     mount(root, ctx){
-      const grid = root.querySelector('#libGrid');
-      // marcar/desmarcar "quero jogar" atualiza os contadores e a lista filtrada
-      ctx.onWant = () => {
-        root.querySelectorAll('#libF .chip').forEach(c => {
-          c.querySelector('span').textContent = M.games.filter(FILTERS.find(f => f[0] === c.dataset.f)[2]).length;
-        });
-        if (LIB.f === 'want') draw();
-      };
+      const box = root.querySelector('#libGrid');
+      const counts = () => root.querySelectorAll('#libF .lib-tab').forEach(c => {
+        c.querySelector('b').textContent = M.games.filter(TABS.find(t => t[0] === c.dataset.f)[2]).length;
+      });
+      // marcar/desmarcar "quero zerar" atualiza os contadores e a lista
+      ctx.onWant = () => { counts(); if (LIB.f === 'want') draw(); };
+
+      const grid = l => `<div class="grid">${l.map(gameCard).join('')}</div>`;
       const draw = () => {
         const l = libList(M);
-        grid.innerHTML = l.length ? l.map(gameCard).join('') : `<div class="empty" style="grid-column:1/-1">Nada por aqui 👀</div>`;
-        animate(grid);
+        root.querySelector('#libHint').textContent = TABS.find(t => t[0] === LIB.f)?.[3] || '';
+        if (!l.length) {
+          box.innerHTML = `<div class="empty">${LIB.f === 'want' && !LIB.q
+            ? '⭐ Nada em "Quero zerar" ainda.<br>Toque no <b>＋</b> no canto de qualquer jogo que você quer terminar.'
+            : 'Nada por aqui 👀'}</div>`;
+        } else if (LIB.f === 'never') {
+          box.innerHTML = NEVER_GROUPS.map(([title, fn]) => {
+            const part = l.filter(fn);
+            return part.length ? `<section class="lib-group"><h3>${title} <span class="count">${part.length}</span></h3>${grid(part)}</section>` : '';
+          }).join('');
+        } else {
+          box.innerHTML = grid(l);
+        }
+        animate(box);
         if (l[0]) setWall(l[0].hero || l[0].cover);
       };
+
       let t;
       root.querySelector('#libQ').addEventListener('input', e => { clearTimeout(t); t = setTimeout(() => { LIB.q = e.target.value; draw(); }, 140); });
-      root.querySelector('#libS').addEventListener('change', e => { LIB.s = e.target.value; draw(); });
-      root.querySelector('#libP').addEventListener('change', e => { LIB.p = e.target.value; draw(); });
-      root.querySelector('#libF').addEventListener('click', e => {
+      const panel = root.querySelector('#libPanel'), optsBtn = root.querySelector('#libOpts');
+      optsBtn.addEventListener('click', () => {
+        panel.hidden = !panel.hidden;
+        optsBtn.setAttribute('aria-expanded', !panel.hidden);
+      });
+      panel.addEventListener('click', e => {
         const b = e.target.closest('.chip'); if (!b) return;
+        if ('s' in b.dataset) LIB.s = b.dataset.s; else LIB.p = b.dataset.p;
+        b.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+        optsBtn.querySelector('.dot').hidden = LIB.s === 'recent' && !LIB.p;
+        draw();
+      });
+      root.querySelector('#libF').addEventListener('click', e => {
+        const b = e.target.closest('.lib-tab'); if (!b) return;
         LIB.f = b.dataset.f;
-        root.querySelectorAll('#libF .chip').forEach(c => c.classList.toggle('on', c === b));
-        history.replaceState(null, '', `#/biblioteca?f=${LIB.f}`);
+        root.querySelectorAll('#libF .lib-tab').forEach(c => { c.classList.toggle('on', c === b); c.setAttribute('aria-selected', c === b); });
         draw();
       });
       draw();
@@ -265,12 +305,14 @@ export function releases(M, params, ctx){
   });
 
   const dateLine = i => {
-    if (!i) return `<span>Data: ative o RAWG no sync</span>`;
+    if (!i) return `<span>${M.sources.rawg ? 'Sem dados de lançamento' : 'Data: ative o RAWG no sync'}</span>`;
     if (i.tba || !i.released) return `<span>Data a confirmar</span>`;
-    const t = new Date(i.released).getTime(), days = Math.ceil((t - now) / 864e5);
+    const t = new Date(i.released + 'T12:00:00').getTime(), days = Math.ceil((t - now) / 864e5);
+    // 31/12 é a data que o RAWG usa quando só se sabe o ano
+    if (days > 0 && i.released.endsWith('-12-31')) return `<span>Previsto para ${i.released.slice(0, 4)}</span>`;
     return days > 0
-      ? `<span>Lança em ${fmtDate(i.released)}</span><span class="countdown">faltam ${days} dia${days > 1 ? 's' : ''}</span>`
-      : `<span>Lançou em ${fmtDate(i.released)}</span><span class="countdown out">disponível</span>`;
+      ? `<span>Lança em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown">faltam ${days} dia${days > 1 ? 's' : ''}</span>`
+      : `<span>Lançou em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown out">disponível</span>`;
   };
   const hypeBar = added => added ? `<div class="hype"><div class="hype-top"><span>${ICON.flame.replace('<svg', '<svg width="12" height="12" style="vertical-align:-1px"')} Hype</span><span>${hype(added)}/100</span></div>
     <div class="hype-track"><i data-w="${hype(added)}"></i></div></div>` : '';
@@ -378,6 +420,7 @@ export function profile(M){
       <div class="trophy-row">
         ${tbox('platinum', e.platinum, 'Platina')}${tbox('gold', e.gold, 'Ouro')}${tbox('silver', e.silver, 'Prata')}${tbox('bronze', e.bronze, 'Bronze')}
       </div>
+      ${retroTeaser(M)}
       <div class="two section">
         <div class="glass panel reveal"><h3>${ICON.clock.replace('<svg', '<svg width="18" height="18"')} Mais jogados</h3>
           <div class="bars">${top.map(g => `<a class="bar-row" href="#/jogo/${encodeURIComponent(g.key)}">${art(g.cover, { w: 120 })}
@@ -395,6 +438,133 @@ export function profile(M){
         </div>
       </div>`,
   };
+}
+
+// ================= RETROSPECTIVA (ANO A ANO) =================
+const RETRO = { metric: 'min', sel: null };
+const TLBL = { platinum: 'Platina', gold: 'Ouro', silver: 'Prata', bronze: 'Bronze' };
+const hShort = m => m >= 60 ? `${Math.round(m / 60).toLocaleString('pt-BR')} h` : m ? `${m} min` : '—';
+
+export function retro(M){
+  const Y = M.years.filter(y => y.total || y.minutes);
+  if (!Y.length) return { html: `<div class="page-head"><h1 class="page-title">Retrospectiva</h1></div>
+    <div class="empty">${M.connected ? 'Ainda sem dados por ano — rode o sync de novo.' : 'Conecte a PSN pra ver sua retrospectiva.'}</div>` };
+  if (!Y.some(y => y.year === RETRO.sel)) RETRO.sel = Y[0].year;
+  const asc = [...Y].sort((a, b) => a.year - b.year);
+  const nowY = new Date().getFullYear();
+  const wallOf = y => { const g = M.byKey.get(y?.top[0]?.key); return g?.hero || g?.cover; };
+
+  const chart = () => {
+    const val = y => RETRO.metric === 'min' ? y.minutes : y.total;
+    const max = Math.max(1, ...asc.map(val));
+    return asc.map(y => `<button class="ybar ${y.year === RETRO.sel ? 'on' : ''}" data-y="${y.year}" aria-label="Ver ${y.year}">
+      <span class="ybar-val">${RETRO.metric === 'min' ? (y.minutes ? '≈' + hShort(y.minutes) : '—') : y.total.toLocaleString('pt-BR')}</span>
+      <span class="ybar-track"><i data-h="${val(y) ? Math.max(3, val(y) / max * 100) : 0}"></i></span>
+      <span class="ybar-year">${y.year}</span></button>`).join('');
+  };
+
+  const detailY = () => {
+    const y = Y.find(x => x.year === RETRO.sel) || Y[0];
+    const top = y.top.map(t => ({ ...t, g: M.byKey.get(t.key) })).filter(t => t.g && (t.min || t.tro));
+    const maxMin = Math.max(1, ...top.map(t => t.min));
+    const maxTro = Math.max(1, ...top.map(t => t.tro));
+    const platsY = y.plats.map(p => ({ ...p, g: M.byKey.get(p.key) })).filter(p => p.g);
+    const rg = y.rarest && M.byKey.get(y.rarest.game);
+    const rk = y.rarest && rarity(y.rarest.rate);
+    const tile = (val, lbl, sub = '') => `<div class="glass stat reveal"><div class="stat-num" data-count="${val}">0</div><div class="stat-lbl">${lbl}</div>${sub}</div>`;
+    return `
+      <div class="year-title reveal">${y.year}${y.year === nowY ? '<small>até agora</small>' : ''}</div>
+      <div class="stats">
+        ${tile(Math.round(y.minutes / 60), 'horas jogadas (estimativa)')}
+        ${tile(y.total, 'troféus conquistados')}
+        ${tile(y.trophies.platinum, 'platinas')}
+        ${tile(y.games, 'jogos jogados', `<div class="stat-lbl" style="margin-top:2px;color:var(--dim)">${y.started} começados no ano</div>`)}
+      </div>
+      <div class="trophy-row">${['platinum', 'gold', 'silver', 'bronze'].map(k =>
+        `<div class="glass tbox reveal">${trophySVG(k, { shine: k === 'platinum' })}<div class="num" data-count="${y.trophies[k] || 0}">0</div><div class="lbl">${TLBL[k]}</div></div>`).join('')}</div>
+      <div class="two section">
+        <div class="glass panel reveal"><h3>🎮 Mais jogados em ${y.year}</h3>
+          <div class="bars">${top.map(t => `<a class="bar-row" href="#/jogo/${encodeURIComponent(t.key)}">${art(t.g.cover, { w: 120 })}
+            <div style="min-width:0"><div class="bar-name">${esc(t.g.name)}</div><div class="bar-track"><i data-w="${t.min ? t.min / maxMin * 100 : t.tro / maxTro * 100}"></i></div></div>
+            <div class="bar-val">${t.min ? '≈' + hShort(t.min) : `${t.tro} troféus`}</div></a>`).join('') || '<div class="empty">Sem atividade registrada</div>'}</div></div>
+        <div class="glass panel reveal"><h3><span style="width:18px;height:20px;display:inline-block">${trophySVG('platinum')}</span> Platinas de ${y.year} <span class="count" style="font-size:12px;color:var(--muted);font-family:var(--body)">${platsY.length}</span></h3>
+          ${platsY.length ? platsY.map(p => {
+            const r = rarity(p.rate);
+            return `<a class="mini-plat" href="#/jogo/${encodeURIComponent(p.key)}">${art(p.g.cover, { w: 120 })}
+              <div style="min-width:0"><div class="bar-name" style="margin:0">${esc(p.g.name)}</div>
+              <div class="pcard-sub">${p.platform ? `<span class="tag">${esc(p.platform)}</span> ` : ''}${fmtDate(p.at)}</div></div>
+              <div class="rate ${r ? 'r-' + r.k : ''}" style="font-size:15px">${fmtPct(p.rate)}</div></a>`;
+          }).join('') : '<div class="empty" style="padding:20px">Nenhuma platina nesse ano</div>'}
+          ${y.rarest ? `<div style="margin-top:18px">
+            <div class="ix-lbl">Troféu mais raro do ano</div>
+            <div class="tro got" style="padding:10px 0 0">
+              <div class="tro-ic">${y.rarest.icon ? `<img src="${esc(y.rarest.icon)}" alt="" loading="lazy">` : ''}<span class="tro-type">${trophySVG(y.rarest.type)}</span></div>
+              <div style="min-width:0"><div class="tro-name">${esc(y.rarest.name)}</div><div class="tro-desc">${esc(rg?.name || '')}</div></div>
+              <div class="tro-rate r-${rk.k}">${fmtPct(y.rarest.rate)}<small>${rk.label}</small></div>
+            </div></div>` : ''}
+        </div>
+      </div>
+      <div class="glass note reveal" style="margin-top:16px">
+        <b>Como os números são calculados:</b> troféus e platinas por ano são exatos (a Sony registra a data de cada um).
+        As <b>horas por ano são estimadas</b>: a Sony só informa o tempo total de cada jogo, então dividimos esse total entre os anos
+        em que você jogou e ganhou troféus. Jogos de PS3 e Vita não têm tempo registrado pela Sony.</div>`;
+  };
+
+  return {
+    wall: wallOf(Y.find(y => y.year === RETRO.sel)),
+    html: `
+      <div class="page-head reveal"><div><h1 class="page-title">Retrospectiva</h1>
+        <div class="page-sub">${M.firstTrophy ? `Seu primeiro troféu foi em ${fmtDate(M.firstTrophy, { month: 'long', year: 'numeric' })} · ` : ''}${Y.length} anos de jogatina</div></div></div>
+      <section class="glass panel reveal">
+        <div class="section-head" style="margin-bottom:6px"><h3 style="margin:0">📅 Ano a ano</h3>
+          <div class="seg" id="retroMetric" style="margin:0">
+            <button data-m="min" class="${RETRO.metric === 'min' ? 'on' : ''}">Horas</button>
+            <button data-m="tro" class="${RETRO.metric === 'tro' ? 'on' : ''}">Troféus</button>
+          </div></div>
+        <div class="ychart" id="ychart">${chart()}</div>
+      </section>
+      <div id="ydetail">${detailY()}</div>`,
+    mount(root){
+      const c = root.querySelector('#ychart');
+      const center = () => requestAnimationFrame(() => {
+        const on = c.querySelector('.ybar.on');
+        if (on) c.scrollLeft = on.offsetLeft - c.clientWidth / 2 + on.clientWidth / 2;
+      });
+      c.addEventListener('click', e => {
+        const b = e.target.closest('[data-y]'); if (!b) return;
+        RETRO.sel = +b.dataset.y;
+        c.querySelectorAll('.ybar').forEach(x => x.classList.toggle('on', x === b));
+        const d = root.querySelector('#ydetail');
+        d.innerHTML = detailY();
+        animate(d);
+        setWall(wallOf(Y.find(y => y.year === RETRO.sel)));
+      });
+      root.querySelector('#retroMetric').addEventListener('click', e => {
+        const b = e.target.closest('[data-m]'); if (!b) return;
+        RETRO.metric = b.dataset.m;
+        root.querySelectorAll('#retroMetric button').forEach(x => x.classList.toggle('on', x === b));
+        c.innerHTML = chart();
+        animate(c);
+        center();
+      });
+      center();
+    },
+  };
+}
+
+// cartão de atalho pra retrospectiva (Início e Perfil)
+function retroTeaser(M){
+  const y = M.years.find(x => x.total || x.minutes);
+  if (!y) return '';
+  const now = y.year === new Date().getFullYear();
+  return `<a class="glass retro-teaser reveal" href="#/anos">
+    <div><div class="eyebrow">📅 Retrospectiva</div><div class="rt-title">Seu ${y.year}${now ? ' até agora' : ''}</div></div>
+    <div class="rt-nums">
+      <span><b data-count="${Math.round(y.minutes / 60)}">0</b>h</span>
+      <span><b data-count="${y.total}">0</b>troféus</span>
+      <span><b data-count="${y.trophies.platinum}">0</b>platinas</span>
+    </div>
+    <span class="see-all">Ver ano a ano →</span></a>`;
 }
 
 // ================= DETALHE: RUMO À PLATINA =================
@@ -416,7 +586,9 @@ export function detail(M, g){
       <button class="d-close" data-close aria-label="Fechar">${ICON.close.replace('<svg', '<svg stroke="#fff" stroke-width="2.4"')}</button></div>
     <div class="d-head">${art(g.cover, { alt: g.name, w: 400 })}
       <div><h2 class="d-title">${esc(g.name)}</h2><div class="d-tags">${tags}</div>
-        ${g.status === 'never' || g.status === 'started'
+        ${g.rating?.score ? `<div class="d-rating"><b>★ ${num(Math.round(g.rating.score * 10) / 10)}</b><span>no RAWG${g.rating.count ? ` · ${g.rating.count.toLocaleString('pt-BR')} avaliações` : ''}</span>
+          ${g.rating.metacritic ? `<span class="tag" style="background:${g.rating.metacritic >= 75 ? '#2e9d5b' : g.rating.metacritic >= 50 ? '#c9952b' : '#b33a3a'};border:0;color:#fff">Metacritic ${g.rating.metacritic}</span>` : ''}</div>` : ''}
+        ${canZerar(g)
           ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}" style="margin-top:12px">${wantLabel(g.want)}</button>` : ''}
       </div></div>
     <div class="d-body">

@@ -113,10 +113,8 @@ export function gameCard(g){
   const pct = tro?.progress ?? 0;
   const isPlat = g.status === 'platinum';
   const tags = [];
-  const canWant = g.status === 'never' || g.status === 'started';
-  if (canWant) tags.push(`<span class="tag wanttag">QUERO JOGAR</span>`);
-  if (g.status === 'never') tags.push(`<span class="tag never">NUNCA JOGADO</span>`);
-  else if (g.source === 'lista') tags.push(`<span class="tag list">MINHA LISTA</span>`);
+  const canWant = g.status !== 'platinum' && g.status !== 'complete';
+  if (canWant) tags.push(`<span class="tag wanttag">⭐ QUERO ZERAR</span>`);
   if (g.plus) tags.push(`<span class="tag plus">PLUS</span>`);
   const corner = isPlat
     ? `<span style="width:30px;height:34px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))">${trophySVG('platinum')}</span>`
@@ -136,13 +134,13 @@ export function gameCard(g){
   </a>`;
 }
 
-// botão "quero jogar" (é um span porque fica dentro do link do card)
+// botão "quero zerar" (é um span porque fica dentro do link do card)
 export function wantBtn(g){
-  return `<span class="want-btn ${g.want ? 'on' : ''}" role="button" tabindex="0" aria-pressed="${g.want}" title="Quero jogar" aria-label="Quero jogar ${esc(g.name)}" data-want="${esc(g.key)}">
+  return `<span class="want-btn ${g.want ? 'on' : ''}" role="button" tabindex="0" aria-pressed="${g.want}" title="Quero zerar" aria-label="Quero zerar ${esc(g.name)}" data-want="${esc(g.key)}">
     <svg class="i-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     <svg class="i-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>`;
 }
-export const wantLabel = on => on ? '✓ Na lista "Quero jogar"' : '＋ Quero jogar';
+export const wantLabel = on => on ? '✓ Está em "Quero zerar"' : '＋ Quero zerar';
 
 // ícones de linha usados em vários lugares
 export const ICON = {

@@ -324,6 +324,59 @@ h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:-.01em}
 @media (max-width:420px){.grid{grid-template-columns:repeat(2,1fr);gap:18px 12px}}
 .empty{color:var(--muted);text-align:center;padding:60px 10px}
 
+/* abas grandes e barra de busca da biblioteca */
+.lib-tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 6px;margin:0 -2px}
+.lib-tabs::-webkit-scrollbar{display:none}
+.lib-tab{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:12px 17px;border-radius:16px;
+  border:1px solid var(--line);background:rgba(255,255,255,.05);backdrop-filter:blur(10px);
+  color:#c7cfea;font-weight:700;font-size:14px;transition:all .25s var(--ease)}
+.lib-tab b{font-family:var(--display);font-size:12px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.1)}
+.lib-tab:hover{border-color:var(--line-2);color:#fff}
+.lib-tab.on{background:#fff;color:#05060b;border-color:#fff;box-shadow:0 10px 26px rgba(124,196,255,.25)}
+.lib-tab.on b{background:rgba(5,6,11,.1)}
+.lib-tab.want.on{background:linear-gradient(135deg,#7cc4ff,var(--accent-2));border-color:transparent;box-shadow:0 10px 26px rgba(0,209,255,.35)}
+.lib-bar{display:flex;gap:10px;margin:12px 0 0;align-items:center}
+.icon-btn{position:relative;width:46px;height:44px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.06);
+  display:grid;place-items:center;flex:0 0 auto;color:#dfe6ff;transition:all .2s}
+.icon-btn svg{width:20px;height:20px}
+.icon-btn[aria-expanded="true"]{background:rgba(61,139,255,.22);border-color:rgba(124,196,255,.45)}
+.icon-btn .dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 8px var(--accent-2)}
+.lib-opts{padding:16px 18px;margin-top:10px;display:grid;gap:16px;animation:enter .3s var(--ease)}
+.lib-opts[hidden]{display:none}
+.lib-opts .chips{flex-wrap:wrap}
+.lib-hint{color:var(--muted);font-size:13px;margin:12px 2px 18px}
+.lib-group + .lib-group{margin-top:30px}
+.lib-group h3{font-size:16px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.lib-group h3 .count{font-family:var(--body);font-size:11.5px;color:var(--muted);font-weight:600;
+  background:rgba(255,255,255,.06);border:1px solid var(--line);padding:2px 8px;border-radius:99px}
+
+/* ================= retrospectiva ================= */
+.ychart{display:flex;gap:10px;align-items:stretch;height:250px;overflow-x:auto;padding:12px 2px 2px;scrollbar-width:none;scroll-behavior:smooth}
+.ychart::-webkit-scrollbar{display:none}
+.ybar{flex:1 0 50px;max-width:140px;display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:0;padding:0;color:var(--muted)}
+.ybar-val{font-family:var(--display);font-weight:700;font-size:11.5px;white-space:nowrap}
+.ybar-track{flex:1;width:100%;display:flex;align-items:flex-end;border-radius:12px;background:rgba(255,255,255,.04);overflow:hidden}
+.ybar-track i{display:block;width:100%;height:0;border-radius:12px;background:linear-gradient(180deg,var(--accent-2),var(--accent) 70%,#3d5bff);
+  opacity:.5;transition:height 1.1s var(--ease), opacity .25s, box-shadow .25s}
+.ybar-year{font-size:12.5px;font-weight:700}
+.ybar:hover .ybar-track i{opacity:.8}
+.ybar.on{color:#fff}
+.ybar.on .ybar-track i{opacity:1;box-shadow:0 0 24px rgba(0,209,255,.5)}
+.year-title{font-family:var(--display);font-weight:800;font-size:clamp(46px,8vw,72px);line-height:1;margin:30px 0 4px;
+  display:flex;align-items:baseline;gap:14px}
+.year-title{background:linear-gradient(90deg,#fff 30%,#7cc4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.year-title small{font-family:var(--body);font-size:14px;font-weight:600;-webkit-text-fill-color:var(--muted)}
+.retro-teaser{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;padding:18px 22px;margin-top:16px;flex-wrap:wrap;
+  transition:transform .3s var(--ease), border-color .3s;background:linear-gradient(120deg,rgba(61,139,255,.16),rgba(179,136,255,.08))}
+.retro-teaser:hover{transform:translateY(-3px);border-color:rgba(124,196,255,.4)}
+.rt-title{font-family:var(--display);font-weight:800;font-size:21px;margin-top:6px}
+.rt-nums{display:flex;gap:20px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+.rt-nums b{font-family:var(--display);font-size:24px;color:#fff;margin-right:4px}
+.mini-plat{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.mini-plat .art{width:44px;border-radius:10px}
+.d-rating{margin-top:10px;font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.d-rating b{color:var(--gold);font-family:var(--display);font-size:16px}
+
 /* ================= platinas ================= */
 .trophy-hero{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;padding:26px 28px;overflow:hidden;position:relative}
 @media (max-width:640px){.trophy-hero{grid-template-columns:1fr;text-align:center;justify-items:center}}

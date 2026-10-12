@@ -6,7 +6,8 @@ import { wantLabel } from './ui.js';
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
 const panel = document.getElementById('sheetPanel');
-const ROUTES = { inicio: V.home, biblioteca: V.library, platinas: V.platinas, lancamentos: V.releases, perfil: V.profile };
+const ROUTES = { inicio: V.home, biblioteca: V.library, platinas: V.platinas, lancamentos: V.releases, perfil: V.profile, anos: V.retro };
+const NAV_OF = { anos: 'perfil' };   // telas sem aba própria acendem a aba "mãe"
 
 let M = null;
 let shown = '';            // rota principal desenhada (ex.: "biblioteca?f=never")
@@ -48,7 +49,7 @@ function drawMain(r, force = false){
   });
   mainWall = out.wall || mainWall;
   if (out.wall) setWall(out.wall);
-  document.querySelectorAll('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.route === name));
+  document.querySelectorAll('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.route === (NAV_OF[name] || name)));
   shown = r.raw;
   lastMainHash = '#/' + r.raw;
 }
@@ -119,7 +120,7 @@ document.addEventListener('click', e => {
     el.closest('.gcard')?.classList.toggle('wanted', g.want);
   });
   if (g.want && navigator.vibrate) navigator.vibrate(18);
-  toast(g.want ? `⭐ ${g.name} → Quero jogar` : `${g.name} saiu de Quero jogar`);
+  toast(g.want ? `⭐ ${g.name} → Quero zerar` : `${g.name} saiu de Quero zerar`);
   ctx.onWant?.();
 }, true);
 document.addEventListener('keydown', e => {

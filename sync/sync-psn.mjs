@@ -195,6 +195,59 @@ async function trophyDetail(auth, title, metaCache){
   });
 }
 
+// ---------- retrospectiva por ano ----------
+const yearOf = iso => iso ? new Intl.DateTimeFormat('en', { timeZone: 'America/Sao_Paulo', year: 'numeric' }).format(new Date(iso)) : null;
+
+// Troféus por ano: data exata da Sony. Horas por ano: a Sony só informa o total de
+// cada jogo, então o total é dividido entre os anos — metade espalhada pelo período
+// em que você jogou, metade proporcional aos troféus que ganhou em cada ano.
+function buildYears(items){
+  const Y = {};
+  const year = y => Y[y] ||= {
+    year: +y, minutes: 0, trophies: { platinum: 0, gold: 0, silver: 0, bronze: 0 },
+    games: new Set(), started: 0, plats: [], rarest: null, perGame: {},
+  };
+  for (const it of items) {
+    const byYear = {};
+    for (const t of it.earned) {
+      const y = yearOf(t.at), Yr = year(y);
+      Yr.trophies[t.ty] = (Yr.trophies[t.ty] || 0) + 1;
+      Yr.games.add(it.key);
+      byYear[y] = (byYear[y] || 0) + 1;
+      if (t.r != null && (!Yr.rarest || t.r < Yr.rarest.rate)) Yr.rarest = { name: t.n, rate: t.r, type: t.ty, icon: t.ic, game: it.key };
+    }
+    const y0 = yearOf(it.firstPlayed), y1 = yearOf(it.lastPlayed);
+    const span = [];
+    if (y0 && y1) for (let y = +y0; y <= +y1; y++) span.push(String(y));
+    const startY = y0 || yearOf(it.earned.map(t => t.at).sort()[0]);
+    if (startY) year(startY).started++;
+    if (it.playMinutes > 0) { if (y0) year(y0).games.add(it.key); if (y1) year(y1).games.add(it.key); }
+
+    const n = Object.values(byYear).reduce((s, c) => s + c, 0);
+    const share = {};
+    if (it.playMinutes > 0) {
+      const wSpan = span.length ? (n >= 3 ? .5 : 1) : 0, wTro = n ? 1 - wSpan : 0;
+      for (const y of span) share[y] = (share[y] || 0) + it.playMinutes * wSpan / span.length;
+      for (const [y, c] of Object.entries(byYear)) share[y] = (share[y] || 0) + it.playMinutes * wTro * c / n;
+    }
+    for (const [y, m] of Object.entries(share)) year(y).minutes += m;
+    for (const y of new Set([...Object.keys(share), ...Object.keys(byYear)])) {
+      year(y).perGame[it.key] = { min: Math.round(share[y] || 0), tro: byYear[y] || 0 };
+    }
+    for (const p of it.plats) {
+      const y = yearOf(p.at);
+      if (y) year(y).plats.push({ key: it.key, platform: p.platform, at: p.at, rate: p.rate });
+    }
+  }
+  return Object.values(Y).sort((a, b) => b.year - a.year).map(Yr => ({
+    year: Yr.year, minutes: Math.round(Yr.minutes), trophies: Yr.trophies,
+    total: Object.values(Yr.trophies).reduce((s, c) => s + c, 0),
+    games: Yr.games.size, started: Yr.started, rarest: Yr.rarest,
+    plats: Yr.plats.sort((a, b) => a.at.localeCompare(b.at)),
+    top: Object.entries(Yr.perGame).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.min - a.min || b.tro - a.tro).slice(0, 8),
+  }));
+}
+
 // ---------- RAWG (opcional): notas, lançamentos e hype ----------
 async function rawg(env, pathAndQuery){
   const sep = pathAndQuery.includes('?') ? '&' : '?';
@@ -211,13 +264,16 @@ async function enrichRawg(env, games, watch){
     slug: g.slug, name: g.name, rating: g.rating, ratings: g.ratings_count, metacritic: g.metacritic,
     released: g.released, tba: g.tba, added: g.added, bg: g.background_image, playtime: g.playtime,
   });
-  async function lookup(name){
+  // só aceita resultado com nome igual ou contido no outro; a lista de desejos (curada) aceita o primeiro
+  async function lookup(name, loose = false){
     const k = norm(name);
     if (k in cache && !FULL) return cache[k];
     try {
-      const r = await rawg(env, `games?search=${encodeURIComponent(name)}&search_precise=true&page_size=3`);
-      const best = (r.results || []).find(x => norm(x.name) === k) || r.results?.[0] || null;
-      cache[k] = pick(best);
+      const r = await rawg(env, `games?search=${encodeURIComponent(name)}&search_precise=true&page_size=5`);
+      const res = r.results || [];
+      const exact = res.find(x => norm(x.name) === k);
+      const close = res.find(x => { const n = norm(x.name); return n.length >= 5 && k.length >= 5 && (n.includes(k) || k.includes(n)); });
+      cache[k] = pick(exact || close || (loose ? res[0] : null) || null);
     } catch (e) { log('RAWG falhou para', name, e.message); cache[k] = cache[k] ?? null; }
     await sleep(120);
     return cache[k];
@@ -286,6 +342,7 @@ async function main(){
   const metaCache = await readJson(path.join(CACHE, 'trophy-meta.json'), {});
   const seen = FULL ? {} : await readJson(path.join(CACHE, 'trophy-seen.json'), {});
   const trophyInfo = {};
+  const lists = {};   // troféus de cada lista, usados na retrospectiva por ano
   let n = 0;
   for (const t of titles) {
     const id = t.npCommunicationId;
@@ -304,6 +361,7 @@ async function main(){
         await writeJson(path.join(CACHE, 'trophy-seen.json'), seen);
       }
     }
+    lists[id] = list;
     const plat = list.find(x => x.ty === 'platinum');
     const earned = list.filter(x => x.e && x.r != null);
     const rarest = earned.sort((a, b) => a.r - b.r)[0] || null;
@@ -394,11 +452,16 @@ async function main(){
 
   const PLAT_LABEL = { PSVITA: 'Vita', PSPC: 'PC' };
   const ROMAN = /^(i{1,3}|iv|v|vi{1,3}|ix|x|xi{1,3})$/i;
-  // "RESIDENT EVIL 3" -> "Resident Evil 3" (só quando o nome vem todo em maiúsculas)
-  const pretty = s => /[a-z].*[a-z]/.test(s) ? s : s.split(' ').map(w =>
-    ROMAN.test(w) || /\d/.test(w) ? w.toUpperCase() : w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+  const ACRONYM = new Set(['EA', 'FC', 'FIFA', 'GTA', 'NBA', 'NFL', 'NHL', 'MLB', 'WWE', 'UFC', 'PES', 'DLC', 'VR', 'HD', 'PGA', 'WRC', 'LEGO', 'DC', 'TMNT', 'NBA2K']);
+  // "RESIDENT EVIL 3" -> "Resident Evil 3", "EA SPORTS FC™ 24" -> "EA Sports FC™ 24"
+  // (só quando o nome vem todo em maiúsculas)
+  const pretty = s => /[a-z].*[a-z]/.test(s) ? s : s.split(' ').map(w => {
+    const core = w.replace(/[™®©:,.!?'’]/g, '');
+    return ROMAN.test(core) || /\d/.test(core) || ACRONYM.has(core) ? w : w.charAt(0) + w.slice(1).toLowerCase();
+  }).join(' ');
 
   const out = [];
+  const yearInput = [];
   for (const g of merged.values()) {
     // lista principal = a com mais progresso (empate: a de PS5)
     g.trophySets.sort((a, b) => b.progress - a.progress || (b.platform.includes('PS5') - a.platform.includes('PS5')));
@@ -430,7 +493,14 @@ async function main(){
       difficulty: difficultyFromRate(platRate),
       otherSets: g.trophySets.slice(1).map(s => ({ id: s.id, platform: s.platform, progress: s.progress, plat: !!s.plat?.earned })),
     });
+    yearInput.push({
+      key: g.key, playMinutes: g.playMinutes, firstPlayed: g.firstPlayed, lastPlayed: g.lastPlayed,
+      plats: out.at(-1).plats,
+      earned: g.trophySets.flatMap(s => (lists[s.id] || []).filter(t => t.e && t.at)),
+    });
   }
+  const years = buildYears(yearInput);
+  const firstTrophy = yearInput.flatMap(i => i.earned.map(t => t.at)).sort()[0] || null;
   out.sort((a, b) => (b.lastPlayed || b.trophies?.updated || '').localeCompare(a.lastPlayed || a.trophies?.updated || ''));
 
   const extra = await readJson(path.join(DATA, 'extra.json'), { watchlist: [] });
@@ -454,6 +524,7 @@ async function main(){
       platinums: out.filter(g => g.status === 'platinum').length,
     },
     games: out,
+    years, firstTrophy,
     market,
   };
   await writeJson(path.join(DATA, 'psn.json'), data);

@@ -36,11 +36,12 @@ function play(el){
   el.classList.add('in');
   el.querySelectorAll('[data-off]').forEach(c => c.style.strokeDashoffset = c.dataset.off);
   el.querySelectorAll('[data-w]').forEach(b => b.style.width = b.dataset.w + '%');
+  el.querySelectorAll('[data-h]').forEach(b => b.style.height = b.dataset.h + '%');
   el.querySelectorAll('[data-count]').forEach(countUp);
 }
 
 export function animate(root){
-  const targets = root.querySelectorAll('.reveal, .gcard, .ring, .pbar, [data-count], [data-w]');
+  const targets = root.querySelectorAll('.reveal, .gcard, .ring, .pbar, [data-count], [data-w], [data-h]');
   for (const t of targets) io && !reduce ? io.observe(t) : play(t);
   if (finePointer && !reduce) tilt(root);
 }

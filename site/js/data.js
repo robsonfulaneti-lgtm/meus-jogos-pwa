@@ -83,6 +83,8 @@ export async function loadModel(){
     byKey: new Map(games.map(g => [g.key, g])),
     watch,
     top: psn?.market?.top || [],
+    years: psn?.years || [],
+    firstTrophy: psn?.firstTrophy || null,
   };
 }
 
