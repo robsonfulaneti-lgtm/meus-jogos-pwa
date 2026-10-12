@@ -276,6 +276,70 @@ function buildYears(items){
   }));
 }
 
+// ---------- IGDB (opcional): tempo pra zerar ----------
+// hastily = só a história, normally = com alguns extras, completely = 100%  (a API devolve em segundos)
+async function enrichIgdb(env, games, watch){
+  if (!env.IGDB_CLIENT_ID || !env.IGDB_CLIENT_SECRET) { log('sem IGDB_CLIENT_ID/SECRET — pulando tempo pra zerar'); return false; }
+  const tf = path.join(CACHE, 'igdb-token.json');
+  let tok = await readJson(tf, null);
+  if (!tok || tok.exp < Date.now() + 3600e3) {
+    const r = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(env.IGDB_CLIENT_ID)}&client_secret=${encodeURIComponent(env.IGDB_CLIENT_SECRET)}&grant_type=client_credentials`, { method: 'POST' });
+    if (!r.ok) { log('IGDB: chave recusada pela Twitch', r.status); return false; }
+    const j = await r.json();
+    tok = { token: j.access_token, exp: Date.now() + j.expires_in * 1000 };
+    await writeJson(tf, tok);
+  }
+  let lastCall = 0;
+  const igdb = async (ep, body) => {
+    const wait = 280 - (Date.now() - lastCall); if (wait > 0) await sleep(wait);   // limite: 4 por segundo
+    lastCall = Date.now();
+    const r = await fetch(`https://api.igdb.com/v4/${ep}`, {
+      method: 'POST', body,
+      headers: { 'Client-ID': env.IGDB_CLIENT_ID, Authorization: `Bearer ${tok.token}`, Accept: 'application/json' },
+    });
+    if (!r.ok) throw new Error(`IGDB ${ep} ${r.status}`);
+    return r.json();
+  };
+  const f = path.join(CACHE, 'igdb.json');
+  const cache = await readJson(f, {});
+  const q = s => s.replace(/["\\]/g, ' ');
+  const clean = s => s.replace(/\(playstation.?\d\)|ps4 ?& ?ps5|[™®©]/gi, ' ').replace(/\s+/g, ' ').trim();
+  // acha o jogo no IGDB (prefere nome igual) e pega o tempo pra zerar; remaster sem dado usa o original
+  async function lookup(name){
+    const k = norm(name);
+    if (k in cache && !FULL) return cache[k];
+    let out = null;
+    try {
+      for (const term of [...new Set([clean(name), clean(name).replace(/[:–—-].*$/, '').trim()])]) {
+        const games = await igdb('games', `search "${q(term)}"; fields id,name,parent_game,version_parent; limit 8;`);
+        const ranked = games.sort((a, b) => (norm(b.name) === k) - (norm(a.name) === k));
+        const ids = ranked.flatMap(g => [g.id, g.version_parent, g.parent_game]).filter(Boolean).slice(0, 10);
+        if (!ids.length) continue;
+        const ttb = await igdb('game_time_to_beats', `fields game_id,hastily,normally,completely,count; where game_id = (${ids.join(',')}); limit 10;`);
+        const byId = new Map(ttb.map(t => [t.game_id, t]));
+        const hit = ids.map(id => byId.get(id)).find(t => t && (t.hastily || t.normally));
+        if (hit) {
+          const h = s => s ? Math.round(s / 360) / 10 : null;
+          out = { h: h(hit.hastily), n: h(hit.normally), c: h(hit.completely), count: hit.count || 0, src: ranked.find(g => [g.id, g.version_parent, g.parent_game].includes(hit.game_id))?.name };
+          break;
+        }
+      }
+    } catch (e) { log('IGDB falhou para', name, e.message); }
+    cache[k] = out;
+    return out;
+  }
+  let n = 0;
+  for (const g of games) {
+    if (g.status === 'platinum') continue;           // já foi zerado; economiza consulta
+    const t = await lookup(g.name);
+    if (t) { g.ttb = t; n++; }
+  }
+  for (const w of watch) { const t = await lookup(w.search || w.name); if (t) w.ttb = t; }
+  await writeJson(f, cache);
+  log(`IGDB: tempo pra zerar em ${n} jogos`);
+  return true;
+}
+
 // ---------- RAWG (opcional): notas, lançamentos e hype ----------
 async function rawg(env, pathAndQuery){
   const sep = pathAndQuery.includes('?') ? '&' : '?';
@@ -579,12 +643,15 @@ async function main(){
   out.sort((a, b) => (b.lastPlayed || b.trophies?.updated || '').localeCompare(a.lastPlayed || a.trophies?.updated || ''));
 
   const extra = await readJson(path.join(DATA, 'extra.json'), { watchlist: [] });
-  const market = await enrichRawg(env, out, extra.watchlist || []);
+  const igdbOn = await enrichIgdb(env, out, extra.watchlist || []);
+  const watchTtb = Object.fromEntries((extra.watchlist || []).filter(w => w.ttb).map(w => [w.id, w.ttb]));
+  const market = await enrichRawg(env, out, (extra.watchlist || []).map(({ ttb, ...w }) => w));
 
   const totalMin = out.reduce((s, g) => s + g.playMinutes, 0);
   const data = {
     generatedAt: new Date().toISOString(),
-    sources: { purchased: purchased.ok, rawg: !!market },
+    sources: { purchased: purchased.ok, rawg: !!market, igdb: igdbOn },
+    watchTtb,
     profile: {
       onlineId: prof.onlineId || null,
       avatar: prof.avatars?.find(a => a.size === 'xl')?.url || prof.avatars?.at(-1)?.url || null,

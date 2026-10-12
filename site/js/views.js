@@ -1,6 +1,6 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
 import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
-import { saveOverride, watchAction, loadTrophies } from './data.js';
+import { saveOverride, watchAction, loadTrophies, zerarEstimate } from './data.js';
 import { sparkles, animate, setWall } from './fx.js';
 import { buildFolders } from './folders.js';
 
@@ -12,6 +12,10 @@ const by = {
   rare:     (a, b) => (a.trophies?.plat?.rate ?? 999) - (b.trophies?.plat?.rate ?? 999),
   diff:     (a, b) => (b.difficulty ?? -1) - (a.difficulty ?? -1),
   name:     (a, b) => a.name.localeCompare(b.name, 'pt-BR'),
+  // quanto falta pra zerar (sem estimativa vai pro fim)
+  ttb:      (a, b) => (a.zerarFalta ?? 1e9) - (b.zerarFalta ?? 1e9) || a.name.localeCompare(b.name, 'pt-BR'),
+  want:     (a, b) => (b.wantAt || 0) - (a.wantAt || 0),
+  zerado:   (a, b) => (b.zeradoDate || 0) - (a.zeradoDate || 0),
 };
 const hasPlatDef = g => g.trophies?.defined?.platinum > 0;
 // listas usam M.games (sem os ocultos); números da conta usam M.all
@@ -131,7 +135,10 @@ function heroCard(g){
 }
 
 // ================= BIBLIOTECA =================
-const LIB = { f: 'all', q: '', s: 'recent', p: '', edit: false };
+// cada aba lembra a sua ordenação (Quero zerar e Nunca jogados começam pelo mais rápido de zerar)
+const LIB = { f: 'all', q: '', p: '', edit: false,
+  sortBy: { all: 'recent', want: 'ttb', playing: 'recent', zerados: 'zerado', never: 'ttb', hidden: 'name' } };
+const curSort = () => LIB.sortBy[LIB.f] || 'recent';
 const TABS = [
   ['all',     'Todos',          () => true,                                                            'Tudo que está na sua conta, mais a sua lista antiga'],
   ['want',    '⭐ Quero zerar',  isWanted,                                                              'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
@@ -140,7 +147,8 @@ const TABS = [
   ['never',   'Nunca jogados',  isNever,                                                               'Estão na sua conta, mas você nunca abriu'],
   ['pastas',  '📁 Pastas',       null,                                                                  'Jogos do mesmo mundo juntos — toque numa pasta pra abrir'],
 ];
-const SORTS = [['recent', 'Recentes'], ['hours', 'Mais jogados'], ['progress', 'Mais perto da platina'], ['rare', 'Platina mais rara'], ['diff', 'Mais difíceis'], ['name', 'Nome (A–Z)']];
+const SORTS = [['ttb', '⏳ Mais rápido de zerar'], ['recent', 'Jogados recentemente'], ['want', 'Ordem em que escolhi'], ['zerado', 'Zerados por data'],
+  ['hours', 'Mais jogados'], ['progress', 'Mais perto da platina'], ['rare', 'Platina mais rara'], ['diff', 'Mais difíceis'], ['name', 'Nome (A–Z)']];
 // "Nunca jogados" separado pela origem, pra não misturar o que você comprou com o que veio no Plus
 const NEVER_GROUPS = [
   ['🛒 Comprados por você', g => g.source === 'psn' && !g.plus],
@@ -151,10 +159,7 @@ const NEVER_GROUPS = [
 function libList(M){
   const q = LIB.q.trim().toLowerCase();
   const base = LIB.f === 'hidden' ? M.hiddenGames : M.games.filter((TABS.find(x => x[0] === LIB.f) || TABS[0])[2] || (() => true));
-  const sort = (LIB.f === 'never' || LIB.f === 'hidden') && LIB.s === 'recent' ? by.name
-    : LIB.f === 'zerados' && LIB.s === 'recent' ? (a, b) => (b.zeradoDate || 0) - (a.zeradoDate || 0)
-    : LIB.f === 'want' && LIB.s === 'recent' ? (a, b) => b.wantAt - a.wantAt
-    : (by[LIB.s] || by.recent);
+  const sort = by[curSort()] || by.recent;
   return base
     .filter(g => !q || g.name.toLowerCase().includes(q))
     .filter(g => !LIB.p || g.platforms?.includes(LIB.p))
@@ -181,7 +186,7 @@ export function library(M, params){
         <label class="search">${ICON.search}<input id="libQ" type="search" placeholder="Buscar jogo…" value="${esc(LIB.q)}" autocomplete="off"></label>
         <button class="icon-btn" id="libOpts" aria-expanded="false" aria-controls="libPanel" title="Ordenar e filtrar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-          <span class="dot" ${LIB.s !== 'recent' || LIB.p ? '' : 'hidden'}></span>
+          <span class="dot" ${LIB.p ? '' : 'hidden'}></span>
         </button>
         <button class="icon-btn ${LIB.edit ? 'on' : ''}" id="libEdit" aria-pressed="${LIB.edit}" title="Organizar: ocultar jogos">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a14 14 0 0 1-3.1 4.3M6.6 6.6A14 14 0 0 0 2 12c1 2.5 5 7 10 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
@@ -196,7 +201,7 @@ export function library(M, params){
       </div>
       <div class="glass lib-opts" id="libPanel" hidden>
         <div><div class="ix-lbl" style="margin-bottom:8px">Ordenar por</div>
-          <div class="chips" id="libS">${SORTS.map(([v, l]) => opt('s', v, l, LIB.s)).join('')}</div></div>
+          <div class="chips" id="libS">${SORTS.map(([v, l]) => opt('s', v, l, curSort())).join('')}</div></div>
         <div><div class="ix-lbl" style="margin-bottom:8px">Plataforma</div>
           <div class="chips" id="libP">${opt('p', '', 'Todas', LIB.p)}${plats.map(p => opt('p', p, p, LIB.p)).join('')}</div></div>
       </div>
@@ -258,13 +263,14 @@ export function library(M, params){
       });
       panel.addEventListener('click', e => {
         const b = e.target.closest('.chip'); if (!b) return;
-        if ('s' in b.dataset) LIB.s = b.dataset.s; else LIB.p = b.dataset.p;
+        if ('s' in b.dataset) LIB.sortBy[LIB.f] = b.dataset.s; else LIB.p = b.dataset.p;
         b.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
-        optsBtn.querySelector('.dot').hidden = LIB.s === 'recent' && !LIB.p;
+        optsBtn.querySelector('.dot').hidden = !LIB.p;
         draw();
       });
       const selectTab = v => {
         LIB.f = v;
+        root.querySelectorAll('#libS .chip').forEach(c => c.classList.toggle('on', c.dataset.s === curSort()));
         root.querySelectorAll('#libF .lib-tab').forEach(c => { c.classList.toggle('on', c.dataset.f === v); c.setAttribute('aria-selected', c.dataset.f === v); });
         draw();
       };
@@ -360,22 +366,61 @@ function dateLine(i, M){
 }
 
 // ================= LANÇAMENTOS =================
+const REL = { sort: 'date', show: 'all' };
+const REL_SORTS = [['date', '📅 Lançamento'], ['price', '💰 Preço'], ['ttb', '⏳ Tempo de jogo'], ['hype', '🔥 Hype']];
+const REL_SHOW = [['all', 'Todos'], ['out', 'Já lançados'], ['soon', 'Em breve']];
+
+// mini gráfico do histórico de preço (pontos que você foi registrando)
+function priceSpark(hist){
+  if (hist.length < 2) return '';
+  const ps = hist.map(h => h.p), lo = Math.min(...ps), hi = Math.max(...ps), W = 110, H = 26;
+  const x = i => Math.round(i / (hist.length - 1) * W), y = v => hi === lo ? H / 2 : Math.round(H - 3 - (v - lo) / (hi - lo) * (H - 6));
+  const pts = hist.map((h, i) => `${x(i)},${y(h.p)}`).join(' ');
+  const mi = ps.indexOf(lo);
+  return `<svg class="spark" viewBox="-3 0 ${W + 6} ${H}" width="${W}" height="${H}" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="#ffd27a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(mi)}" cy="${y(lo)}" r="3" fill="#3ddc97"/></svg>`;
+}
+
 export function releases(M, params, ctx){
   const active = M.watch.filter(w => !w.removed && !w.bought);
   const total = active.reduce((s, w) => s + (w.price || 0), 0);
-  const maxAdded = Math.max(1, ...M.watch.map(w => w.info?.added || 0), ...M.top.map(t => t.added || 0));
-  const hype = added => added ? Math.max(4, Math.round(100 * Math.log10(added + 1) / Math.log10(maxAdded + 1))) : 0;
   const now = Date.now();
-  const when = i => i?.released ? new Date(i.released).getTime() : (i?.tba ? 9e15 : 8e15);
-  active.sort((a, b) => {
-    const fa = when(a.info) > now, fb = when(b.info) > now;
-    return (fb - fa) || when(a.info) - when(b.info);
-  });
+  const relAt = w => w.info?.released ? Date.parse(w.info.released + 'T12:00:00') : null;
+  const isOut = w => relAt(w) != null && relAt(w) <= now;
+  // hype só entre os jogos da sua lista (o mais aguardado dela = 100)
+  const maxAdded = Math.max(1, ...active.map(w => w.info?.added || 0));
+  const hype = added => added ? Math.max(4, Math.round(100 * Math.log10(added + 1) / Math.log10(maxAdded + 1))) : 0;
+  const ttbOf = w => w.ttb?.h || w.ttb?.n || null;
+
+  const shown = active.filter(w => REL.show === 'all' || (REL.show === 'out' ? isOut(w) : !isOut(w)));
+  const last = 9e15;
+  const sorters = {
+    // em breve: o mais próximo primeiro; já lançados: o mais recente primeiro; sem data no fim
+    date: (a, b) => {
+      const oa = isOut(a), ob = isOut(b);
+      if (oa !== ob) return oa - ob;
+      return oa ? (relAt(b) || 0) - (relAt(a) || 0) : (relAt(a) ?? last) - (relAt(b) ?? last);
+    },
+    price: (a, b) => (a.price || last) - (b.price || last),
+    ttb: (a, b) => (ttbOf(a) ?? last) - (ttbOf(b) ?? last),
+    hype: (a, b) => (b.info?.added || 0) - (a.info?.added || 0),
+  };
+  shown.sort(sorters[REL.sort] || sorters.date);
 
   const hypeBar = added => added ? `<div class="hype"><div class="hype-top"><span>${ICON.flame.replace('<svg', '<svg width="12" height="12" style="vertical-align:-1px"')} Hype</span><span>${hype(added)}/100</span></div>
     <div class="hype-track"><i data-w="${hype(added)}"></i></div></div>` : '';
   const score = i => i?.rating && i.released && new Date(i.released) < new Date()
     ? `<div class="wcard-date" style="margin-top:6px"><span style="color:var(--gold)">${ICON.star.replace('<svg', '<svg width="12" height="12" style="vertical-align:-1px"')} ${num(i.rating)}</span>${i.metacritic ? `<span>Metacritic ${i.metacritic}</span>` : ''}</div>` : '';
+  const priceBox = w => {
+    if (!w.price) return `<div class="price none">sem preço definido</div>`;
+    const ps = w.hist.map(h => h.p), lo = ps.length ? Math.min(...ps) : w.price;
+    const loAt = w.hist.find(h => h.p === lo)?.t;
+    return `<div class="price-row"><div class="price">${brl(w.price)}</div>${priceSpark(w.hist)}</div>
+      ${w.hist.length > 1 ? `<div class="wcard-date">${lo < w.price
+        ? `<span>menor registrado: <b style="color:var(--good)">${brl(lo)}</b> em ${fmtDate(new Date(loAt).toISOString())}</span>`
+        : `<span style="color:var(--good)">▼ menor preço que você já registrou</span>`} · ${w.hist.length} registros</div>` : ''}`;
+  };
 
   const wcard = w => `<div class="glass wcard reveal" data-id="${esc(w.id)}" data-wall="${esc(w.info?.bg || w.cover || '')}">
     ${art(w.info?.bg && !w.cover ? w.info.bg : w.cover, { alt: w.name, w: 260 })}
@@ -383,8 +428,9 @@ export function releases(M, params, ctx){
       <div class="wcard-name">${esc(w.name)}</div>
       <div class="wcard-date">${dateLine(w.info, M)}</div>
       ${score(w.info)}
+      ${ttbOf(w) ? `<div class="wcard-date" style="margin-top:4px"><span>⏳ ~${num(ttbOf(w))} h pra zerar${w.ttb.c ? ` · 100% ~${num(w.ttb.c)} h` : ''}</span></div>` : ''}
       ${hypeBar(w.info?.added)}
-      <div class="price ${w.price ? '' : 'none'}">${w.price ? brl(w.price) : 'sem preço definido'}</div>
+      ${priceBox(w)}
       <div class="wactions">
         <button class="mini-btn" data-act="price">✏️ Preço</button>
         <button class="mini-btn good" data-act="bought">✔ Comprei</button>
@@ -392,30 +438,36 @@ export function releases(M, params, ctx){
       </div>
     </div></div>`;
 
-  const topCard = (t, i) => `<div class="glass wcard reveal" data-wall="${esc(t.bg || '')}">
-    <span class="rank">#${i + 1}</span>
-    ${art(t.bg, { alt: t.name, w: 260 })}
-    <div><div class="wcard-name">${esc(t.name)}</div>
-      <div class="wcard-date">${dateLine(t, M)}</div>${hypeBar(t.added)}</div></div>`;
-
+  const chip = (group, v, l, cur) => `<button class="chip ${v === cur ? 'on' : ''}" data-${group}="${v}">${l}</button>`;
   const done = M.watch.filter(w => w.bought || w.removed);
+  const outCount = active.filter(isOut).length;
   return {
-    wall: active[0]?.info?.bg || active[0]?.cover,
+    wall: shown[0]?.info?.bg || shown[0]?.cover,
     html: `
       <div class="page-head reveal"><div><h1 class="page-title">Lançamentos & desejos</h1>
-        <div class="page-sub">O que vem por aí, quanto custa e quanto a internet está esperando</div></div></div>
+        <div class="page-sub">Sua lista: quando sai, quanto custa, quanto tempo leva e o hype</div></div></div>
       <section class="glass invest reveal">
         <div><div style="color:var(--muted);font-size:13px;font-weight:600">Total pra investir</div>
           <div class="invest-num">${brl(total)}</div></div>
-        <div style="color:var(--muted);font-size:13px">${active.length} jogos na lista${active.filter(w => !w.price).length ? ` · ${active.filter(w => !w.price).length} sem preço` : ''}</div>
+        <div style="color:var(--muted);font-size:13px">${active.length} jogos · ${outCount} já lançado${outCount === 1 ? '' : 's'}${active.filter(w => !w.price).length ? ` · ${active.filter(w => !w.price).length} sem preço` : ''}</div>
       </section>
       ${M.sources.rawg ? '' : `<div class="glass note reveal" style="margin-top:14px">
         <b>Ative datas, notas e hype:</b> crie uma chave grátis em <b>rawg.io/apidocs</b>, cole em <code>sync/.env.local</code> como <code>RAWG_API_KEY=</code> e rode o sync de novo.</div>`}
-      ${section('Sua lista de desejos', `<div class="wl" id="wl">${active.map(wcard).join('')}</div>`, { count: active.length })}
-      ${M.top.length ? section('Mais aguardados no PS5', `<div class="wl">${M.top.slice(0, 12).map(topCard).join('')}</div>`) : ''}
+      <div class="rel-controls reveal">
+        <div><span class="ix-lbl">Ordenar</span><div class="chips" id="relSort">${REL_SORTS.map(([v, l]) => chip('sort', v, l, REL.sort)).join('')}</div></div>
+        <div><span class="ix-lbl">Mostrar</span><div class="chips" id="relShow">${REL_SHOW.map(([v, l]) => chip('show', v, l, REL.show)).join('')}</div></div>
+      </div>
+      ${section('Sua lista de desejos', shown.length ? `<div class="wl" id="wl">${shown.map(wcard).join('')}</div>` : '<div class="empty">Nada nesse filtro</div>', { count: shown.length })}
+      <div class="ix-foot" style="margin-top:10px">💡 O histórico de preço é montado com os preços que você atualiza aqui (✏️ Preço). Atualize quando vir promoção na PS Store que o menor valor fica registrado.</div>
       ${done.length ? section('Comprados ou removidos', `<div class="kv">${done.map(w => `<button class="chip" data-undo="${esc(w.id)}" data-act="${w.bought ? 'bought' : 'removed'}">${w.bought ? '✔' : '🗑'} ${esc(w.name)} <span>desfazer</span></button>`).join('')}</div>`) : ''}`,
     mount(root){
       root.addEventListener('click', e => {
+        const c = e.target.closest('[data-sort],[data-show]');
+        if (c) {
+          if (c.dataset.sort) REL.sort = c.dataset.sort; else REL.show = c.dataset.show;
+          ctx.rerender();
+          return;
+        }
         const b = e.target.closest('[data-act]'); if (!b) return;
         const id = b.dataset.undo || b.closest('[data-id]')?.dataset.id;
         const w = M.watch.find(x => x.id === id); if (!w) return;
@@ -425,7 +477,11 @@ export function releases(M, params, ctx){
           if (raw == null) return;
           const v = parseFloat(raw.replace(/[R$\s.]/g, '').replace(',', '.'));
           if (isNaN(v) || v < 0) return ctx.toast('Valor inválido');
-          watchAction(id, 'price', v); w.price = v; ctx.toast(`💰 ${w.name}: ${brl(v)}`);
+          watchAction(id, 'price', v);
+          w.hist = [...(w.hist || []), { p: v, t: Date.now() }];
+          const lo = Math.min(...w.hist.map(h => h.p));
+          ctx.toast(v <= lo && w.hist.length > 1 ? `🔥 ${w.name}: ${brl(v)} — menor preço já registrado!` : `💰 ${w.name}: ${brl(v)}`);
+          w.price = v;
         } else {
           if (!b.dataset.undo && act === 'removed' && !confirm(`Remover ${w.name} da lista?`)) return;
           watchAction(id, act); w[act] = !w[act];
@@ -764,6 +820,14 @@ export function detail(M, g){
           <div class="ix-val">${g.hoursPlat != null ? num(g.hoursPlat) : '—'}<small>h</small></div>
           <div class="ix-foot">${g.hoursPlat != null ? 'sua estimativa' : 'defina olhando o guia abaixo'}${g.playMinutes ? ` · você já jogou ${fmtH(g.playMinutes)}` : ''}</div>
         </div>
+        <div class="glass ix" id="ixZerar">
+          <button class="ix-edit" data-edit="zerar">editar</button>
+          <div class="ix-lbl">Tempo pra zerar</div>
+          <div class="ix-val">${g.zerarH != null ? '~' + num(g.zerarH) : '—'}<small>h</small></div>
+          <div class="ix-foot">${g.zerarH == null ? (M.sources.igdb ? 'sem dado no IGDB — defina você' : 'ative o IGDB no sync ou defina você')
+            : g.zerarSrc === 'IGDB' ? `só a história${g.ttb.n ? ` · com extras ~${num(g.ttb.n)} h` : ''}${g.ttb.c ? ` · 100% ~${num(g.ttb.c)} h` : ''} · IGDB`
+            : g.zerarSrc === 'você' ? 'sua estimativa' : 'estimativa da sua lista'}${!g.zerado && g.playMinutes && g.zerarFalta != null ? ` · faltam ~${num(g.zerarFalta)} h` : ''}</div>
+        </div>
       </div>
 
       ${t ? `<div class="glass journey">
@@ -803,7 +867,7 @@ export function mountDetail(panel, M, g, ctx){
   panel.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
     const kind = b.dataset.edit, box = b.parentElement;
     if (box.querySelector('.ix-form')) return;
-    const cur = kind === 'diff' ? (g.difficulty ?? 5) : (g.hoursPlat ?? '');
+    const cur = kind === 'diff' ? (g.difficulty ?? 5) : kind === 'zerar' ? (g.zerarH ?? '') : (g.hoursPlat ?? '');
     const f = document.createElement('div');
     f.className = 'ix-form';
     f.innerHTML = kind === 'diff'
@@ -815,13 +879,13 @@ export function mountDetail(panel, M, g, ctx){
     f.querySelector('.mini-btn:not([data-reset])').addEventListener('click', () => {
       const v = parseFloat(inp.value);
       if (isNaN(v)) return;
-      saveOverride(g.key, kind === 'diff' ? { diff: v } : { hours: v });
-      kind === 'diff' ? g.difficulty = v : g.hoursPlat = v;
+      saveOverride(g.key, kind === 'diff' ? { diff: v } : kind === 'zerar' ? { zerar: v } : { hours: v });
+      if (kind === 'diff') g.difficulty = v; else if (kind === 'zerar') zerarEstimate(g); else g.hoursPlat = v;
       ctx.toast('Salvo ✔'); ctx.reopen();
     });
     f.querySelector('[data-reset]').addEventListener('click', () => {
-      saveOverride(g.key, kind === 'diff' ? { diff: null } : { hours: null });
-      kind === 'diff' ? g.difficulty = g.diffAuto : delete g.hoursPlat;
+      saveOverride(g.key, kind === 'diff' ? { diff: null } : kind === 'zerar' ? { zerar: null } : { hours: null });
+      if (kind === 'diff') g.difficulty = g.diffAuto; else if (kind === 'zerar') zerarEstimate(g); else delete g.hoursPlat;
       ctx.reopen();
     });
     inp.focus();

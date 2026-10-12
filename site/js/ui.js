@@ -131,12 +131,23 @@ export function gameCard(g){
       <div class="shade"></div>
       <div class="tl">${tags.join('')}</div>
       <div class="tr">${corner}</div>
-      <div class="bl">${g.playMinutes ? `<span class="hrs">⏱ ${fmtH(g.playMinutes)}</span>` : g.hoursEst ? `<span class="hrs" style="opacity:.8">~${String(g.hoursEst).replace('.', ',')} h</span>` : ''}</div>
+      <div class="bl">${bottomLeft(g)}</div>
       ${canWant ? `<div class="br">${wantBtn(g)}</div>` : zerBtn ? `<div class="br">${zerBtn}</div>` : ''}` })}
     <div class="gname">${esc(g.name)}</div>
     <div class="gsub">${sub.filter(Boolean).join(' · ') || '&nbsp;'}</div>
     ${tro ? `<div class="pbar"><i data-w="${pct}"></i></div>` : ''}
   </a>`;
+}
+
+// canto de baixo do card: quanto falta pra zerar (se ainda não zerou), senão as horas jogadas
+const num1 = n => String(Math.round(n * 10) / 10).replace('.', ',');
+function bottomLeft(g){
+  if (!g.zerado && g.zerarFalta != null) {
+    return g.playMinutes && g.zerarFalta < g.zerarH
+      ? `<span class="hrs" title="tempo pra zerar (${esc(g.zerarSrc)}) menos o que você já jogou">⏳ faltam ~${num1(g.zerarFalta)} h</span>`
+      : `<span class="hrs" title="tempo pra zerar (${esc(g.zerarSrc)})">⏳ ~${num1(g.zerarH)} h</span>`;
+  }
+  return g.playMinutes ? `<span class="hrs">⏱ ${fmtH(g.playMinutes)}</span>` : '';
 }
 
 // botão "quero zerar" (é um span porque fica dentro do link do card)

@@ -85,6 +85,7 @@ export async function loadModel(){
     g.diffAuto = g.difficulty;
     if (o?.diff != null) g.difficulty = o.diff;
     if (o?.hours != null) g.hoursPlat = o.hours;
+    zerarEstimate(g, o);
   }
 
   // lista de desejos: aproveita preços/compras/remoções da versão antiga do app
@@ -93,13 +94,21 @@ export async function loadModel(){
   const removed = new Set(store.get('buy.deleted.v1', []));
   const info = Object.fromEntries((psn?.market?.watch || []).map(w => [w.id, w.info]));
   const custom = store.get('games.custom.buy.v1', []).map(c => ({ id: c.id, name: c.title, price: c.price, cover: c.img }));
-  const watch = [...(extra?.watchlist || []), ...custom].map(w => ({
-    ...w,
-    price: w.id in prices ? prices[w.id] : (w.price || 0),
-    info: info[w.id] || null,
-    bought: bought.has(w.id),
-    removed: removed.has(w.id),
-  }));
+  const hist = store.get('buy.pricehist.v1', {});
+  const watch = [...(extra?.watchlist || []), ...custom].map(w => {
+    const price = w.id in prices ? prices[w.id] : (w.price || 0);
+    // histórico: começa com o preço que já estava salvo, e cada edição acrescenta um ponto
+    if (!hist[w.id] && price) hist[w.id] = [{ p: price, t: Date.now() }];
+    return {
+      ...w, price,
+      info: info[w.id] || null,
+      ttb: psn?.watchTtb?.[w.id] || null,
+      hist: hist[w.id] || [],
+      bought: bought.has(w.id),
+      removed: removed.has(w.id),
+    };
+  });
+  store.set('buy.pricehist.v1', hist);
 
   const byKey = new Map(games.map(g => [g.key, g]));
   recompute(games, byKey);
@@ -219,9 +228,23 @@ export function setZerado(g, on){
 }
 export const toggleHidden = key => toggleIn('g.hidden.v1', key);
 
+// tempo pra zerar: o que você digitou > IGDB (só a história) > estimativa da sua lista antiga
+export function zerarEstimate(g, o = store.get('g.ovr.v1', {})[g.key]){
+  const t = g.ttb;
+  if (o?.zerar != null) { g.zerarH = o.zerar; g.zerarSrc = 'você'; }
+  else if (t?.h || t?.n) { g.zerarH = t.h || t.n; g.zerarSrc = 'IGDB'; }
+  else if (g.hoursEst) { g.zerarH = g.hoursEst; g.zerarSrc = 'sua lista'; }
+  else { g.zerarH = null; g.zerarSrc = null; }
+  // quanto falta, descontando o que você já jogou
+  g.zerarFalta = g.zerarH == null ? null : Math.max(0, Math.round((g.zerarH - (g.playMinutes || 0) / 60) * 10) / 10);
+}
+
 export function watchAction(id, action, value){
   if (action === 'price') {
     const p = store.get('buy.prices.v1', {}); p[id] = value; store.set('buy.prices.v1', p);
+    const h = store.get('buy.pricehist.v1', {});
+    (h[id] ||= []).push({ p: value, t: Date.now() });
+    store.set('buy.pricehist.v1', h);
   } else {
     const k = action === 'bought' ? 'buy.bought.v1' : 'buy.deleted.v1';
     const s = new Set(store.get(k, [])); s.has(id) ? s.delete(id) : s.add(id); store.set(k, [...s]);
