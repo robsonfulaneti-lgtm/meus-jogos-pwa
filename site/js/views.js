@@ -428,7 +428,7 @@ export function releases(M, params, ctx){
       <div class="wcard-name">${esc(w.name)}</div>
       <div class="wcard-date">${dateLine(w.info, M)}</div>
       ${score(w.info)}
-      ${ttbOf(w) ? `<div class="wcard-date" style="margin-top:4px"><span>⏳ ~${num(ttbOf(w))} h pra zerar${w.ttb.c ? ` · 100% ~${num(w.ttb.c)} h` : ''}</span></div>` : ''}
+      ${ttbOf(w) ? `<div class="wcard-date" style="margin-top:4px"><span>⏳ ~${num(ttbOf(w))} h pra zerar${w.ttb.c ? ` · 100% ~${num(w.ttb.c)} h` : ''}${w.ttb.src && w.ttb.src.toLowerCase() !== w.name.toLowerCase() ? ` · com base em ${esc(w.ttb.src)}` : ''}</span></div>` : ''}
       ${hypeBar(w.info?.added)}
       ${priceBox(w)}
       <div class="wactions">
@@ -825,7 +825,7 @@ export function detail(M, g){
           <div class="ix-lbl">Tempo pra zerar</div>
           <div class="ix-val">${g.zerarH != null ? '~' + num(g.zerarH) : '—'}<small>h</small></div>
           <div class="ix-foot">${g.zerarH == null ? (M.sources.igdb ? 'sem dado no IGDB — defina você' : 'ative o IGDB no sync ou defina você')
-            : g.zerarSrc === 'IGDB' ? `só a história${g.ttb.n ? ` · com extras ~${num(g.ttb.n)} h` : ''}${g.ttb.c ? ` · 100% ~${num(g.ttb.c)} h` : ''} · IGDB`
+            : g.zerarSrc === 'IGDB' ? `só a história${g.ttb.n ? ` · com extras ~${num(g.ttb.n)} h` : ''}${g.ttb.c ? ` · 100% ~${num(g.ttb.c)} h` : ''} · IGDB${g.ttb.src && g.ttb.src.toLowerCase() !== g.name.toLowerCase().replace(/[™®]/g, '').trim() ? ` (${esc(g.ttb.src)})` : ''}`
             : g.zerarSrc === 'você' ? 'sua estimativa' : 'estimativa da sua lista'}${!g.zerado && g.playMinutes && g.zerarFalta != null ? ` · faltam ~${num(g.zerarFalta)} h` : ''}</div>
         </div>
       </div>

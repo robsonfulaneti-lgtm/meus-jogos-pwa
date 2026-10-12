@@ -304,25 +304,35 @@ async function enrichIgdb(env, games, watch){
   const cache = await readJson(f, {});
   const q = s => s.replace(/["\\]/g, ' ');
   const clean = s => s.replace(/\(playstation.?\d\)|ps4 ?& ?ps5|[™®©]/gi, ' ').replace(/\s+/g, ' ').trim();
-  // acha o jogo no IGDB (prefere nome igual) e pega o tempo pra zerar; remaster sem dado usa o original
+  // "alan wake ii" == "alan wake 2"
+  const ROM = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
+  const nn = s => norm(s).split(' ').map(t => ROM[t] ?? t).join(' ');
+  // nome compatível: igual, ou um contido no outro com tamanho parecido e sem número de sequência de diferença
+  const close = (a, b) => {
+    if (a === b) return true;
+    const [s, l] = a.length < b.length ? [a, b] : [b, a];
+    if (s.length < 5 || !l.includes(s) || s.length / l.length < 0.6) return false;
+    return !/^(\d+|zero)$/.test(l.replace(s, ' ').trim().split(' ')[0]);
+  };
+  // acha o jogo no IGDB (só aceita nome compatível) e pega o tempo pra zerar; remaster sem dado usa o original
   async function lookup(name){
-    const k = norm(name);
+    const k = norm(name), kk = nn(name);
     if (k in cache && !FULL) return cache[k];
     let out = null;
     try {
-      for (const term of [...new Set([clean(name), clean(name).replace(/[:–—-].*$/, '').trim()])]) {
-        const games = await igdb('games', `search "${q(term)}"; fields id,name,parent_game,version_parent; limit 8;`);
-        const ranked = games.sort((a, b) => (norm(b.name) === k) - (norm(a.name) === k));
-        const ids = ranked.flatMap(g => [g.id, g.version_parent, g.parent_game]).filter(Boolean).slice(0, 10);
-        if (!ids.length) continue;
+      const games = await igdb('games', `search "${q(clean(name))}"; fields id,name,parent_game,version_parent; limit 10;`);
+      const ranked = games.filter(g => close(nn(g.name), kk)).sort((a, b) => (nn(b.name) === kk) - (nn(a.name) === kk));
+      const ids = ranked.flatMap(g => [g.id, g.version_parent, g.parent_game]).filter(Boolean).slice(0, 10);
+      if (ids.length) {
         const ttb = await igdb('game_time_to_beats', `fields game_id,hastily,normally,completely,count; where game_id = (${ids.join(',')}); limit 10;`);
         const byId = new Map(ttb.map(t => [t.game_id, t]));
-        const hit = ids.map(id => byId.get(id)).find(t => t && (t.hastily || t.normally));
-        if (hit) {
-          const h = s => s ? Math.round(s / 360) / 10 : null;
-          out = { h: h(hit.hastily), n: h(hit.normally), c: h(hit.completely), count: hit.count || 0, src: ranked.find(g => [g.id, g.version_parent, g.parent_game].includes(hit.game_id))?.name };
-          break;
-        }
+        const h = s => s ? Math.round(s / 360) / 10 : null;
+        const sane = v => v != null && v > 0 && v < 400 ? v : null;   // descarta valores absurdos
+        const hit = ids.map(id => byId.get(id)).find(t => t && (sane(h(t.hastily)) || sane(h(t.normally))));
+        if (hit) out = {
+          h: sane(h(hit.hastily)), n: sane(h(hit.normally)), c: sane(h(hit.completely)), count: hit.count || 0,
+          src: ranked.find(g => [g.id, g.version_parent, g.parent_game].includes(hit.game_id))?.name,
+        };
       }
     } catch (e) { log('IGDB falhou para', name, e.message); }
     cache[k] = out;
