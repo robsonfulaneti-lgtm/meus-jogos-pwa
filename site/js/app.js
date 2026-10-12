@@ -1,4 +1,4 @@
-import { loadModel, toggleWant, toggleZerado, toggleHidden, applyFlags } from './data.js';
+import { loadModel, toggleWant, setZerado, toggleHidden, togglePart, applyFlags } from './data.js';
 import * as V from './views.js';
 import { animate, setWall, transition, confetti } from './fx.js';
 import { wantLabel } from './ui.js';
@@ -113,17 +113,38 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   // modo "Organizar" da biblioteca: tocar no card oculta/mostra o jogo
   const editCard = e.target.closest('.lib-editing .gcard');
-  const b = editCard || e.target.closest('[data-want],[data-zerar],[data-hide]');
+  const b = editCard || e.target.closest('[data-want],[data-zerar],[data-hide],[data-part]');
   if (!b) return;
   e.preventDefault();
   e.stopPropagation();
+
+  // parte de um jogo (DLC ou jogo de coletânea): "parentKey|idDaParte"
+  if (b.dataset.part) {
+    const [pk, pid] = b.dataset.part.split('|');
+    const parent = M.byKey.get(pk), part = parent?.parts?.find(p => p.id === pid);
+    if (!part) return;
+    const wasZerado = parent.zerado;
+    togglePart(parent, part);
+    applyFlags(M);
+    if (part.zerado) {
+      const r = b.getBoundingClientRect();
+      confetti(r.left + r.width / 2, r.top + r.height / 2);
+      if (navigator.vibrate) navigator.vibrate([20, 40, 30]);
+    }
+    toast(part.zerado
+      ? (!wasZerado && parent.zerado ? `🏁 ${part.name} zerado — e ${parent.name} completo!` : `✅ ${part.name} zerado!`)
+      : `${part.name} voltou a ficar pendente`);
+    refreshAll();
+    return;
+  }
+
   const key = editCard ? editCard.dataset.key : (b.dataset.want || b.dataset.zerar || b.dataset.hide);
   const g = M.byKey.get(key);
   if (!g) return;
 
   if (editCard || b.dataset.hide) {
     g.hiddenAt = toggleHidden(key);
-    applyFlags(M, g);
+    applyFlags(M);
     if (editCard) {
       // some na hora com animação; o redesenho completo vem em seguida
       editCard.classList.add('vanish');
@@ -134,8 +155,8 @@ document.addEventListener('click', e => {
   }
 
   if (b.dataset.zerar) {
-    g.zeradoAt = toggleZerado(key);
-    applyFlags(M, g);
+    setZerado(g, !g.zerado);
+    applyFlags(M);
     if (g.zerado) {
       const r = b.getBoundingClientRect();
       confetti(r.left + r.width / 2, r.top + r.height / 2);

@@ -12,6 +12,7 @@ import {
   exchangeNpssoForAccessCode, exchangeAccessCodeForAuthTokens, exchangeRefreshTokenForAuthTokens,
   getUserTrophyProfileSummary, getProfileFromAccountId, getUserTitles, getUserPlayedGames,
   getPurchasedGames, getUserTrophiesForSpecificTitle, getUserTrophiesEarnedForTitle, getTitleTrophies,
+  getTitleTrophyGroups,
 } from 'psn-api';
 
 const ROOT  = path.dirname(fileURLToPath(import.meta.url));
@@ -195,6 +196,33 @@ async function trophyDetail(auth, title, metaCache){
   });
 }
 
+// ---------- pistas de "zerado" ----------
+// Troféu de fim de história: "Complete o jogo", "Conclua a história principal", "Termine a campanha"...
+// Não vale: capítulo N, missão entre aspas ("Você concluiu "Jogo limpo""), "Vença a Final da Champions",
+// capítulo com nome ("Conclua a História - O ACIDENTE"), fita/DLC ("a história da fita") e Novo Jogo+.
+const STORY = new RegExp(
+  '\\b(conclua|concluiu|complete|completou|completed|termine|terminou|finalize|finalizou|zere|zerou|finish|finished|beat)\\s+' +
+  '(\\S+\\s+)?' +
+  '(o jogo|a hist[óo]ria( principal)?|a campanha( principal)?|a aventura|o modo hist[óo]ria|o cap[íi]tulo final|' +
+  'the game|the story|the main story|the campaign|the main campaign)\\b' +
+  '(?!\\s*[-–:])(?! da fita)(?! do dlc)', 'i');
+function zeroHints(trophies){
+  const earned = trophies.filter(t => t.e && t.at);
+  const lastTrophyAt = earned.map(t => t.at).sort().at(-1) || null;
+  const stories = earned.filter(t => t.ty !== 'platinum' && STORY.test(`${t.n || ''} ${t.d || ''}`)).sort((a, b) => a.at.localeCompare(b.at));
+  // por parte (grupo de troféus): numa coletânea, cada jogo tem o seu troféu de fim
+  const storyByPart = {};
+  for (const t of stories) storyByPart[t.g || 'default'] ||= t.at;
+  const lastByPart = {};
+  for (const t of earned) { const k = t.g || 'default'; if (!lastByPart[k] || t.at > lastByPart[k]) lastByPart[k] = t.at; }
+  const story = stories[0];
+  return {
+    lastTrophyAt, lastByPart,
+    storyTrophy: story ? { name: story.n, detail: story.d, at: story.at, part: story.g || 'default' } : null,
+    storyByPart: stories.length ? storyByPart : null,
+  };
+}
+
 // ---------- retrospectiva por ano ----------
 const yearOf = iso => iso ? new Intl.DateTimeFormat('en', { timeZone: 'America/Sao_Paulo', year: 'numeric' }).format(new Date(iso)) : null;
 
@@ -365,6 +393,22 @@ async function main(){
   const seen = FULL ? {} : await readJson(path.join(CACHE, 'trophy-seen.json'), {});
   const trophyInfo = {};
   const lists = {};   // troféus de cada lista, usados na retrospectiva por ano
+  // nomes das partes (jogos de uma coletânea, DLCs): grupos da lista de troféus
+  const groupCache = await readJson(path.join(CACHE, 'trophy-groups.json'), {});
+  const groupsOf = {};
+  for (const t of titles.filter(t => t.hasTrophyGroups)) {
+    const gk = `${t.npCommunicationId}@${t.trophySetVersion}`;
+    if (!groupCache[gk]) {
+      try {
+        const r = await api(`partes ${t.trophyTitleName}`, () => getTitleTrophyGroups(auth, t.npCommunicationId, {
+          npServiceName: t.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy', headerOverrides: LANG,
+        }));
+        groupCache[gk] = r.trophyGroups.map(g => ({ id: g.trophyGroupId, name: g.trophyGroupName, icon: g.trophyGroupIconUrl }));
+      } catch (e) { log('partes falhou', t.trophyTitleName, e.message); }
+    }
+    if (groupCache[gk]) groupsOf[t.npCommunicationId] = groupCache[gk];
+  }
+  await writeJson(path.join(CACHE, 'trophy-groups.json'), groupCache);
   let n = 0;
   for (const t of titles) {
     const id = t.npCommunicationId;
@@ -454,7 +498,9 @@ async function main(){
 
   // junta entradas do mesmo jogo: versões PS4/PS5 com "concept" diferente,
   // ou lista de troféus que a Sony não ligou ao registro de horas
+  // ("Troféus do EA SPORTS FC™ 26" é a lista de troféus do "EA Sports FC™ 26")
   const nameKey = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/^(trofeus d[aoe]s?|trophies)\s+/, '')
     .replace(/[™®©]/g, '').replace(/\b(ps4|ps5)\b/g, '').replace(/[^a-z0-9]+/g, '');
   const merged = new Map();
   for (const g of games.values()) {
@@ -514,6 +560,13 @@ async function main(){
       platEarnedAt: g.trophySets.find(s => s.plat?.earned)?.plat.at || null,
       difficulty: difficultyFromRate(platRate),
       otherSets: g.trophySets.slice(1).map(s => ({ id: s.id, platform: s.platform, progress: s.progress, plat: !!s.plat?.earned })),
+      // pra sugerir "zerado": data do último troféu e o troféu de história concluída, se você ganhou
+      ...zeroHints(g.trophySets.flatMap(s => lists[s.id] || [])),
+      // partes do jogo (coletânea ou DLCs), com o progresso de troféus de cada uma
+      parts: main && groupsOf[main.id]?.length > 1 ? groupsOf[main.id].map(p => {
+        const ts = (lists[main.id] || []).filter(t => (t.g || 'default') === p.id && t.ty !== 'platinum');
+        return { id: p.id, name: p.name, icon: p.icon, defined: ts.length, earned: ts.filter(t => t.e).length };
+      }) : null,
     });
     yearInput.push({
       key: g.key, playMinutes: g.playMinutes, firstPlayed: g.firstPlayed, lastPlayed: g.lastPlayed,

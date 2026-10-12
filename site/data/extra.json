@@ -9,33 +9,15 @@
       "note": "terminar"
     },
     {
-      "id": "re7-eoz",
-      "name": "Resident Evil 7 — End of Zoe",
-      "cover": "covers/dlc-r7-eoz.jpg",
-      "hours": 2.5
-    },
-    {
       "id": "lara-croft-go",
       "name": "Lara Croft GO",
       "cover": "covers/lara-croft-go.jpg",
       "hours": 4
     },
     {
-      "id": "tr1",
-      "name": "Tomb Raider I Remastered",
-      "cover": "covers/tr1.png",
-      "hours": 7
-    },
-    {
       "id": "re-rev",
       "name": "Resident Evil Revelations",
       "cover": "covers/re-rev.jpg",
-      "hours": 9
-    },
-    {
-      "id": "tr2",
-      "name": "Tomb Raider II Remastered",
-      "cover": "covers/tr2.png",
       "hours": 9
     },
     {
@@ -51,27 +33,9 @@
       "hours": 9
     },
     {
-      "id": "tr3",
-      "name": "Tomb Raider III Remastered",
-      "cover": "covers/tr3.png",
-      "hours": 9
-    },
-    {
       "id": "re1",
       "name": "Resident Evil",
       "cover": "covers/re1.jpg",
-      "hours": 9
-    },
-    {
-      "id": "uncharted-3",
-      "name": "Uncharted 3: Drake's Deception",
-      "cover": "covers/uncharted-3.jpg",
-      "hours": 9
-    },
-    {
-      "id": "tr4",
-      "name": "Tomb Raider: The Last Revelation",
-      "cover": "covers/tr4.png",
       "hours": 9
     },
     {
@@ -87,12 +51,6 @@
       "hours": 11
     },
     {
-      "id": "tr5",
-      "name": "Tomb Raider: Chronicles",
-      "cover": "covers/tr5.png",
-      "hours": 7
-    },
-    {
       "id": "gta-vc",
       "name": "Grand Theft Auto: Vice City",
       "cover": "covers/gta-vc.jpg",
@@ -103,18 +61,6 @@
       "name": "Resident Evil 6",
       "cover": "covers/re6.jpg",
       "hours": 13.5
-    },
-    {
-      "id": "tr6",
-      "name": "Tomb Raider: The Angel of Darkness",
-      "cover": "covers/tr6.png",
-      "hours": 11
-    },
-    {
-      "id": "mafia-3",
-      "name": "Mafia III",
-      "cover": "covers/mafia-3.jpg",
-      "hours": 17.5
     },
     {
       "id": "gta-sa",
@@ -246,5 +192,63 @@
     "_sobre": "Data do jogo original pra ordenar as pastas quando o RAWG não acha (coletâneas remaster)",
     "Tomb Raider I-III Remastered Starring Lara Croft": "1996-10-25",
     "Tomb Raider IV-VI Remastered": "1999-11-19"
+  },
+  "collections": {
+    "_sobre": "Coletâneas: as partes vêm dos grupos de troféus da PSN. names = rótulo melhor pra uma parte; games = quais partes são jogos (as outras são expansões/extras); include = outros jogos da conta que moram dentro desta coletânea. A coletânea conta como zerada quando todos os jogos dela forem zerados.",
+    "Tomb Raider I-III Remastered Starring Lara Croft": {
+      "games": [
+        "001",
+        "003",
+        "005"
+      ]
+    },
+    "Tomb Raider IV-VI Remastered": {
+      "names": {
+        "default": "Tomb Raider: The Last Revelation"
+      },
+      "games": [
+        "default",
+        "001",
+        "002"
+      ]
+    },
+    "UNCHARTED: Coleção Legado dos Ladrões": {
+      "names": {
+        "default": "Uncharted 4: A Thief’s End"
+      },
+      "games": [
+        "default",
+        "001"
+      ]
+    },
+    "Uncharted: The Nathan Drake Collection™": {
+      "include": [
+        "Uncharted: Drake's Fortune™ Remastered",
+        "Uncharted 2: Among Thieves™ Remastered"
+      ],
+      "games": [
+        "default"
+      ]
+    },
+    "Crash Bandicoot N. Sane Trilogy": {
+      "include": [
+        "Crash Bandicoot 2: Cortex Strikes Back",
+        "Crash Bandicoot: Warped"
+      ],
+      "names": {
+        "default": "Crash Bandicoot"
+      },
+      "games": [
+        "default"
+      ]
+    },
+    "Mafia: Trilogy": {
+      "include": [
+        "Mafia: Definitive Edition"
+      ],
+      "games": [
+        "default"
+      ]
+    }
   }
 }

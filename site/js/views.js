@@ -136,7 +136,7 @@ const TABS = [
   ['all',     'Todos',          () => true,                                                            'Tudo que está na sua conta, mais a sua lista antiga'],
   ['want',    '⭐ Quero zerar',  isWanted,                                                              'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
   ['playing', 'Jogando',        g => (g.status === 'playing' || g.status === 'started') && !g.zerado,  'Já abriu e ainda não zerou'],
-  ['zerados', '✅ Zerados',      g => g.zerado,                                                         'Os que você marcou como zerado, mais os platinados e 100% (esses entram sozinhos)'],
+  ['zerados', '✅ Zerados',      g => g.zerado,                                                         'Platinados e 100% entram sozinhos. Também marquei os jogos com mais de 3 h (ou com troféu de fim de história). Não zerou algum? Toque no ✓ verde do card pra tirar.'],
   ['never',   'Nunca jogados',  isNever,                                                               'Estão na sua conta, mas você nunca abriu'],
   ['pastas',  '📁 Pastas',       null,                                                                  'Jogos do mesmo mundo juntos — toque numa pasta pra abrir'],
 ];
@@ -152,7 +152,7 @@ function libList(M){
   const q = LIB.q.trim().toLowerCase();
   const base = LIB.f === 'hidden' ? M.hiddenGames : M.games.filter((TABS.find(x => x[0] === LIB.f) || TABS[0])[2] || (() => true));
   const sort = (LIB.f === 'never' || LIB.f === 'hidden') && LIB.s === 'recent' ? by.name
-    : LIB.f === 'zerados' && LIB.s === 'recent' ? (a, b) => (b.zeradoAt || Date.parse(b.platEarnedAt || 0) || 0) - (a.zeradoAt || Date.parse(a.platEarnedAt || 0) || 0)
+    : LIB.f === 'zerados' && LIB.s === 'recent' ? (a, b) => (b.zeradoDate || 0) - (a.zeradoDate || 0)
     : LIB.f === 'want' && LIB.s === 'recent' ? (a, b) => b.wantAt - a.wantAt
     : (by[LIB.s] || by.recent);
   return base
@@ -677,6 +677,37 @@ function retroTeaser(M){
 }
 
 // ================= DETALHE: RUMO À PLATINA =================
+// partes do jogo grande: jogos de uma coletânea ou DLCs, cada uma com o seu "zerado"
+const PART_LABEL = { base: 'Jogo base', dlc: 'DLC', jogo: 'Jogo', extra: 'Extra' };
+function partsBlock(M, g){
+  if (!g.parts || g.parts.length < 2) return '';
+  const title = g.collection ? '📦 Jogos desta coletânea' : '📦 Jogo base e DLCs';
+  const row = p => {
+    const pct = p.defined ? Math.round(p.earned / p.defined * 100) : 0;
+    const when = p.date ? ` · ${fmtDate(new Date(p.date).toISOString())}` : '';
+    const btn = p.auto
+      ? `<span class="part-btn on auto" title="Todos os troféus dessa parte">✅ 100%</span>`
+      : `<button class="part-btn ${p.zerado ? 'on' : ''}" ${p.link ? `data-zerar="${esc(p.link)}"` : `data-part="${esc(g.key)}|${esc(p.id)}"`}
+           aria-pressed="${p.zerado}">${p.zerado ? '✅ Zerado' : 'Marcar zerado'}</button>`;
+    const name = esc(p.name);
+    return `<div class="part ${p.zerado ? 'done' : ''}">
+      <div class="part-ic">${art(p.icon, { w: 200, alt: p.name })}</div>
+      <div class="part-main">
+        <div class="part-name">${p.link ? `<a href="#/jogo/${encodeURIComponent(p.link)}">${name} ›</a>` : name}
+          <em class="ptag ${p.kind}">${PART_LABEL[p.kind] || ''}</em></div>
+        <div class="part-sub">${p.defined ? `${p.earned}/${p.defined} troféus` : 'sem troféus'}${p.zerado && p.sug && !p.auto ? ' · troféu de fim de história' : ''}${p.zerado ? when : ''}</div>
+        <div class="pbar"><i data-w="${pct}"></i></div>
+      </div>
+      ${btn}
+    </div>`;
+  };
+  return `<section class="parts">
+    <h3 class="parts-title">${title} <span class="count">${g.partsDone}/${g.partsTotal} zerado${g.partsTotal > 1 ? 's' : ''}</span></h3>
+    ${g.collection ? `<div class="ix-foot" style="margin:-4px 0 12px">A coletânea conta como zerada quando todos os jogos dela estiverem zerados.</div>` : ''}
+    <div class="parts-list">${g.parts.map(row).join('')}</div>
+  </section>`;
+}
+
 export function detail(M, g){
   const t = g.trophies, di = diffInfo(g.difficulty);
   const rate = t?.plat?.rate;
@@ -701,12 +732,19 @@ export function detail(M, g){
         <div class="d-actions">
           ${canZerar(g) ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}">${wantLabel(g.want)}</button>` : ''}
           ${g.zeradoAuto
-            ? `<span class="btn ghost zer-big on" title="Platinado ou 100% conta como zerado">✅ Zerado ${g.status === 'platinum' ? '(platina)' : '(100%)'}</span>`
-            : `<button class="btn ghost zer-big ${g.zerado ? 'on' : ''}" data-zerar="${esc(g.key)}" aria-pressed="${g.zerado}">${g.zerado ? `✅ Zerado${g.zeradoAt ? ` em ${fmtDate(new Date(g.zeradoAt).toISOString())}` : ''} · desfazer` : '✅ Marcar como zerado'}</button>`}
+            ? `<span class="btn ghost zer-big on" title="Conta como zerado sozinho">✅ Zerado (${esc(g.zeradoWhy)})</span>`
+            : `<button class="btn ghost zer-big ${g.zerado ? 'on' : ''}" data-zerar="${esc(g.key)}" aria-pressed="${g.zerado}">${g.zerado
+                ? `✅ Zerado${g.zeradoDate ? ` em ${fmtDate(new Date(g.zeradoDate).toISOString())}` : ''} · tirar`
+                : '✅ Marcar como zerado'}</button>`}
           <button class="btn ghost hide-big" data-hide="${esc(g.key)}" aria-pressed="${g.hidden}">${g.hidden ? '👁 Mostrar na biblioteca' : '🙈 Ocultar'}</button>
         </div>
+        ${g.zerado && !g.zeradoAuto && !g.zeradoAt && g.zeradoSug ? `<div class="ix-foot" style="margin-top:8px">Marquei sozinho: ${g.storyTrophy
+          ? `você ganhou o troféu de fim de história <b>“${esc(g.storyTrophy.name)}”</b>`
+          : `mais de 3 h jogadas — a data é a do seu último troféu`}. Não zerou? Toque em “tirar”.</div>` : ''}
+        ${g.parentKey ? `<a class="see-all" style="display:inline-block;margin-top:10px" href="#/jogo/${encodeURIComponent(g.parentKey)}">📦 Faz parte de ${esc(M.byKey.get(g.parentKey)?.name || 'uma coletânea')} →</a>` : ''}
       </div></div>
     <div class="d-body">
+      ${partsBlock(M, g)}
       <div class="index">
         <div class="glass ix" id="ixDiff">
           <button class="ix-edit" data-edit="diff">editar</button>
@@ -794,6 +832,13 @@ export function mountDetail(panel, M, g, ctx){
     if (!road) return;
     road.innerHTML = list?.length ? roadmap(list, g) : '<div class="glass note" style="margin-top:20px">Não achei a lista de troféus desse jogo — rode o sync de novo.</div>';
     road.addEventListener('click', e => {
+      const pc = e.target.closest('[data-pid]');
+      if (pc) {
+        const tabNow = road.querySelector('[data-tab].on')?.dataset.tab || '';
+        road.innerHTML = roadmap(list, g, pc.dataset.pid, tabNow);
+        animate(road);
+        return;
+      }
       const tb = e.target.closest('[data-tab]');
       if (tb) {
         road.querySelectorAll('[data-tab]').forEach(b => { b.classList.toggle('on', b === tb); b.setAttribute('aria-selected', b === tb); });
@@ -808,51 +853,67 @@ export function mountDetail(panel, M, g, ctx){
   });
 }
 
-function troRow(x, step){
+function troRow(x, step, partName){
   const rk = rarity(x.r);
   const secret = x.h && !x.e;
+  // etiqueta da parte: nome da DLC / do jogo da coletânea (o jogo base não precisa)
+  const tag = partName ? `<em class="dlc">${esc(partName)}</em>` : x.g && x.g !== 'default' ? '<em class="dlc">DLC</em>' : '';
   return `<div class="tro ${x.e ? 'got' : ''} ${secret ? 'hidden-t' : ''}">
     <div class="tro-ic">${x.ic ? `<img src="${esc(x.ic)}" alt="" loading="lazy">` : ''}<span class="tro-type">${trophySVG(x.ty)}</span></div>
     <div style="min-width:0">
-      <div class="tro-name">${step ? `<span class="step">${step}</span>` : ''}<span>${esc(x.n || 'Troféu oculto')}</span>${x.g && x.g !== 'default' ? '<em class="dlc">DLC</em>' : ''}</div>
+      <div class="tro-name">${step ? `<span class="step">${step}</span>` : ''}<span>${esc(x.n || 'Troféu oculto')}</span>${tag}</div>
       <div class="tro-desc">${secret ? 'Troféu oculto — toque para revelar · ' : ''}${esc(x.d || '')}${x.e && x.at ? ` · conquistado em ${fmtDate(x.at)}` : ''}</div>
     </div>
     <div class="tro-rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(x.r)}<small>${rk?.label || ''}</small></div>
   </div>`;
 }
 
-function roadmap(list, g){
+// pid = mostrar só os troféus de uma parte (DLC ou jogo da coletânea)
+function roadmap(list, g, pid = '', tabPref = ''){
+  const groupParts = (g.parts || []).filter(p => !p.link);
+  const nameOf = id => {
+    const p = groupParts.find(x => x.id === (id || 'default'));
+    return p && (g.collection || p.id !== 'default') ? p.name : '';
+  };
+  const inPart = x => !pid || (x.g || 'default') === pid;
   const plat = list.find(x => x.ty === 'platinum');
-  const pending = list.filter(x => !x.e && x.ty !== 'platinum').sort((a, b) => (b.r ?? -1) - (a.r ?? -1));
-  const done = list.filter(x => x.e && x.ty !== 'platinum').sort((a, b) => (b.at || '').localeCompare(a.at || ''));
-  const base = pending.filter(x => !x.g || x.g === 'default');
+  const pending = list.filter(x => !x.e && x.ty !== 'platinum' && inPart(x)).sort((a, b) => (b.r ?? -1) - (a.r ?? -1));
+  const done = list.filter(x => x.e && x.ty !== 'platinum' && inPart(x)).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  // próximos passos: do jogo base (ou da parte escolhida; numa coletânea, de tudo)
+  const base = pid || g.collection || !groupParts.length ? pending : pending.filter(x => !x.g || x.g === 'default');
   const next = base.slice(0, 5);
   const rest = pending.filter(x => !next.includes(x));
+  const row = (x, step) => troRow(x, step, pid ? '' : nameOf(x.g));
+  const chips = groupParts.length > 1 ? `<div class="chips part-chips">
+      <button class="chip ${!pid ? 'on' : ''}" data-pid="">Todas as partes</button>
+      ${groupParts.map(p => `<button class="chip ${pid === p.id ? 'on' : ''}" data-pid="${esc(p.id)}">${esc(p.name)} <span>${p.earned}/${p.defined}</span></button>`).join('')}
+    </div>` : '';
   const goal = plat
     ? `<div class="goal">${trophySVG('platinum', { shine: true })}<div>
         <div style="font-size:11.5px;letter-spacing:1px;font-weight:700;color:var(--muted);text-transform:uppercase">${plat.e ? 'Conquistada' : 'Objetivo'}</div>
         <div style="font-family:var(--display);font-weight:800;font-size:19px;margin-top:4px">${esc(plat.n)}</div>
-        <div style="color:var(--muted);font-size:13px;margin-top:4px">${plat.e ? `Platinado em ${fmtDate(plat.at)} — você está entre os ${fmtPct(plat.r)} que conseguiram` : `${base.length} troféus do jogo base faltando · ${fmtPct(plat.r)} dos jogadores chegaram lá`}</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px">${plat.e ? `Platinado em ${fmtDate(plat.at)} — você está entre os ${fmtPct(plat.r)} que conseguiram` : `${base.length} troféus ${!pid && !g.collection && groupParts.length ? "do jogo base " : ""}faltando · ${fmtPct(plat.r)} dos jogadores chegaram lá`}</div>
       </div></div>`
     : `<div class="goal">${trophySVG('gold', { shine: true })}<div><div style="font-family:var(--display);font-weight:800;font-size:18px">Sem platina — objetivo é 100%</div>
         <div style="color:var(--muted);font-size:13px;margin-top:4px">${pending.length} troféus faltando</div></div></div>`;
 
-  // abre em "Conquistados" quando não falta nada
-  const tab = pending.length ? 'pend' : 'done';
+  // abre em "Conquistados" quando não falta nada (ou mantém a aba que você estava vendo)
+  const tab = tabPref || (pending.length ? 'pend' : 'done');
   const pendPane = pending.length ? `
       ${next.length ? `<h3>Próximos passos <span class="count">ordem sugerida: dos mais comuns aos mais raros</span></h3>
-        <div>${next.map((x, i) => troRow(x, i + 1)).join('')}</div>` : ''}
+        <div>${next.map((x, i) => row(x, i + 1)).join('')}</div>` : ''}
       ${rest.length ? `<h3>${next.length ? 'Depois' : 'Faltam'} <span class="count">${rest.length}</span></h3>
-        <div>${rest.map((x, i) => troRow(x).replace('<div class="tro', i >= 12 ? '<div hidden class="tro' : '<div class="tro')).join('')}</div>
+        <div>${rest.map((x, i) => row(x).replace('<div class="tro', i >= 12 ? '<div hidden class="tro' : '<div class="tro')).join('')}</div>
         ${rest.length > 12 ? `<button class="mini-btn more" data-more>Mostrar mais ${rest.length - 12}</button>` : ''}` : ''}`
-    : `<div class="glass note" style="margin-top:16px">Não falta nenhum troféu. 🎉</div>`;
+    : `<div class="glass note" style="margin-top:16px">Não falta nenhum troféu${pid ? ' nessa parte' : ''}. 🎉</div>`;
   const donePane = done.length
-    ? `<div style="margin-top:14px">${done.map(x => troRow(x)).join('')}</div>`
-    : `<div class="glass note" style="margin-top:16px">Nenhum troféu ainda — o primeiro passo está na aba ao lado.</div>`;
+    ? `<div style="margin-top:14px">${done.map(x => row(x)).join('')}</div>`
+    : `<div class="glass note" style="margin-top:16px">Nenhum troféu ainda${pid ? ' nessa parte' : ''} — o primeiro passo está na aba ao lado.</div>`;
 
   return `
     <h3>🧭 Rumo à platina</h3>
     ${goal}
+    ${chips}
     <div class="seg" role="tablist">
       <button role="tab" data-tab="pend" class="${tab === 'pend' ? 'on' : ''}" aria-selected="${tab === 'pend'}">Faltam <span>${pending.length}</span></button>
       <button role="tab" data-tab="done" class="${tab === 'done' ? 'on' : ''}" aria-selected="${tab === 'done'}">✔ Conquistados <span>${done.length}</span></button>

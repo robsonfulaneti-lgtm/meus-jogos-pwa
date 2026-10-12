@@ -121,14 +121,18 @@ export function gameCard(g){
     ? `<span style="width:30px;height:34px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))">${trophySVG('platinum')}</span>`
     : tro ? ring(pct, { size: 34, th: 4, label: false }) : '';
   const sub = [g.platforms?.slice(0, 2).join(' · ')];
+  if (g.partsTotal > 1) sub.push(`<span title="partes zeradas" style="color:${g.partsDone === g.partsTotal ? 'var(--good)' : 'inherit'}">📦 ${g.partsDone}/${g.partsTotal}</span>`);
   if (g.difficulty != null) sub.push(`<span style="color:${diffInfo(g.difficulty).color}">◆ ${String(g.difficulty).replace('.', ',')}</span>`);
+  // zerado que você pode tirar (marcado por você ou automático) ganha o ✓ verde no canto
+  const zerBtn = g.zerado && !g.zeradoAuto
+    ? `<span class="zer-btn" role="button" tabindex="0" title="Zerado — toque pra tirar" aria-label="Tirar ${esc(g.name)} dos zerados" data-zerar="${esc(g.key)}">✓</span>` : '';
   return `<a class="gcard ${isPlat ? 'is-plat' : ''} ${canWant && g.want ? 'wanted' : ''} ${g.zerado ? 'is-zerado' : ''}" href="#/jogo/${encodeURIComponent(g.key)}" data-key="${esc(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
     ${art(g.cover, { alt: g.name, inner: `
       <div class="shade"></div>
       <div class="tl">${tags.join('')}</div>
       <div class="tr">${corner}</div>
       <div class="bl">${g.playMinutes ? `<span class="hrs">⏱ ${fmtH(g.playMinutes)}</span>` : g.hoursEst ? `<span class="hrs" style="opacity:.8">~${String(g.hoursEst).replace('.', ',')} h</span>` : ''}</div>
-      ${canWant ? `<div class="br">${wantBtn(g)}</div>` : ''}` })}
+      ${canWant ? `<div class="br">${wantBtn(g)}</div>` : zerBtn ? `<div class="br">${zerBtn}</div>` : ''}` })}
     <div class="gname">${esc(g.name)}</div>
     <div class="gsub">${sub.filter(Boolean).join(' · ') || '&nbsp;'}</div>
     ${tro ? `<div class="pbar"><i data-w="${pct}"></i></div>` : ''}
