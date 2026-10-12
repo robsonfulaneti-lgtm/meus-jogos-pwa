@@ -1,5 +1,5 @@
-const VER = 'games-v4';
-const IMG = 'games-img-v1';
+const VER = 'games-v5';
+const IMG = 'games-img-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/data.js', 'js/ui.js', 'js/fx.js', 'js/views.js', 'js/folders.js',
