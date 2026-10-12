@@ -50,10 +50,20 @@ export async function loadModel(){
     }
   }
 
+  for (const [name, date] of Object.entries(extra?.releaseOverride || {})) {
+    const g = games.find(x => x.name === name);
+    if (g) g.rating = { ...(g.rating || {}), orig: date };
+  }
+
   const want = store.get('g.want.v1', {});
+  const zer = store.get('g.zerado.v1', {});
+  const hid = store.get('g.hidden.v1', {});
   for (const g of games) {
     g.want = !!want[g.key];
     g.wantAt = want[g.key] || 0;
+    g.zeradoAt = zer[g.key] || 0;
+    g.hiddenAt = hid[g.key] || 0;
+    flags(g);
     const o = ovr[g.key];
     g.diffAuto = g.difficulty;
     if (o?.diff != null) g.difficulty = o.diff;
@@ -79,7 +89,9 @@ export async function loadModel(){
     generatedAt: psn?.generatedAt || null,
     sources: psn?.sources || {},
     profile: psn?.profile || null,
-    games,
+    all: games,                              // tudo (números da conta, estante, retrospectiva)
+    games: games.filter(g => !g.hidden),     // o que aparece nas listas
+    hiddenGames: games.filter(g => g.hidden),
     byKey: new Map(games.map(g => [g.key, g])),
     watch,
     top: psn?.market?.top || [],
@@ -95,13 +107,33 @@ export function saveOverride(key, patch){
   store.set('g.ovr.v1', all);
 }
 
-// "Quero jogar": guarda a hora em que foi marcado, pra manter a ordem da sua escolha
+// "Quero zerar": guarda a hora em que foi marcado, pra manter a ordem da sua escolha
 export function toggleWant(key){
   const w = store.get('g.want.v1', {});
   if (w[key]) delete w[key]; else w[key] = Date.now();
   store.set('g.want.v1', w);
   return w[key] || 0;
 }
+
+// zerado = marcado por você, ou platinado / 100% (esses contam sozinhos)
+function flags(g){
+  g.zerado = !!g.zeradoAt || g.status === 'platinum' || g.status === 'complete';
+  g.zeradoAuto = g.status === 'platinum' || g.status === 'complete';
+  g.hidden = !!g.hiddenAt;
+}
+export function applyFlags(M, g){
+  flags(g);
+  M.games = M.all.filter(x => !x.hidden);
+  M.hiddenGames = M.all.filter(x => x.hidden);
+}
+function toggleIn(storeKey, key){
+  const m = store.get(storeKey, {});
+  if (m[key]) delete m[key]; else m[key] = Date.now();
+  store.set(storeKey, m);
+  return m[key] || 0;
+}
+export const toggleZerado = key => toggleIn('g.zerado.v1', key);
+export const toggleHidden = key => toggleIn('g.hidden.v1', key);
 
 export function watchAction(id, action, value){
   if (action === 'price') {

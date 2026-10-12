@@ -1,8 +1,8 @@
-const VER = 'games-v1';
+const VER = 'games-v2';
 const IMG = 'games-img-v1';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/app.js', 'js/data.js', 'js/ui.js', 'js/fx.js', 'js/views.js',
+  'js/app.js', 'js/data.js', 'js/ui.js', 'js/fx.js', 'js/views.js', 'js/folders.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png',
 ];
 

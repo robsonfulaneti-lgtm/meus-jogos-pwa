@@ -113,15 +113,16 @@ export function gameCard(g){
   const pct = tro?.progress ?? 0;
   const isPlat = g.status === 'platinum';
   const tags = [];
-  const canWant = g.status !== 'platinum' && g.status !== 'complete';
+  const canWant = !g.zerado;
   if (canWant) tags.push(`<span class="tag wanttag">⭐ QUERO ZERAR</span>`);
+  if (g.zerado && !isPlat) tags.push(`<span class="tag zerado">✅ ZERADO</span>`);
   if (g.plus) tags.push(`<span class="tag plus">PLUS</span>`);
   const corner = isPlat
     ? `<span style="width:30px;height:34px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))">${trophySVG('platinum')}</span>`
     : tro ? ring(pct, { size: 34, th: 4, label: false }) : '';
   const sub = [g.platforms?.slice(0, 2).join(' · ')];
   if (g.difficulty != null) sub.push(`<span style="color:${diffInfo(g.difficulty).color}">◆ ${String(g.difficulty).replace('.', ',')}</span>`);
-  return `<a class="gcard ${isPlat ? 'is-plat' : ''} ${canWant && g.want ? 'wanted' : ''}" href="#/jogo/${encodeURIComponent(g.key)}" data-key="${esc(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
+  return `<a class="gcard ${isPlat ? 'is-plat' : ''} ${canWant && g.want ? 'wanted' : ''} ${g.zerado ? 'is-zerado' : ''}" href="#/jogo/${encodeURIComponent(g.key)}" data-key="${esc(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
     ${art(g.cover, { alt: g.name, inner: `
       <div class="shade"></div>
       <div class="tl">${tags.join('')}</div>

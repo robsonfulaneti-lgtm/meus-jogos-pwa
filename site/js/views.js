@@ -2,6 +2,7 @@
 import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
 import { saveOverride, watchAction, loadTrophies } from './data.js';
 import { sparkles, animate, setWall } from './fx.js';
+import { buildFolders } from './folders.js';
 
 const num = n => String(n).replace('.', ',');
 const by = {
@@ -13,15 +14,18 @@ const by = {
   name:     (a, b) => a.name.localeCompare(b.name, 'pt-BR'),
 };
 const hasPlatDef = g => g.trophies?.defined?.platinum > 0;
-const played = M => M.games.filter(g => g.source === 'psn' && g.status !== 'never');
-const plats  = M => M.games.filter(g => g.status === 'platinum').sort((a, b) => (b.platEarnedAt || '').localeCompare(a.platEarnedAt || ''));
+// listas usam M.games (sem os ocultos); números da conta usam M.all
+const isPlayed = g => g.source === 'psn' && g.status !== 'never';
+const played = M => M.games.filter(isPlayed);
+const plats  = M => M.all.filter(g => g.status === 'platinum').sort((a, b) => (b.platEarnedAt || '').localeCompare(a.platEarnedAt || ''));
 const isNear = g => g.status !== 'platinum' && hasPlatDef(g) && g.trophies.progress >= 50;
 const near   = M => M.games.filter(isNear).sort(by.progress);
-const queue  = M => M.games.filter(g => g.status === 'never').sort((a, b) => b.want - a.want || (a.source === 'lista') - (b.source === 'lista') || by.name(a, b));
-const canZerar = g => g.status !== 'platinum' && g.status !== 'complete';
-const isWanted = g => g.want && canZerar(g);
+const isNever = g => g.status === 'never' && !g.zerado;
+const queue  = M => M.games.filter(isNever).sort((a, b) => b.want - a.want || (a.source === 'lista') - (b.source === 'lista') || by.name(a, b));
+const canZerar = g => !g.zerado;
+const isWanted = g => g.want && !g.zerado;
 const wanted = M => M.games.filter(isWanted).sort((a, b) => b.wantAt - a.wantAt);
-const totalMinutes = M => M.games.reduce((s, g) => s + (g.playMinutes || 0), 0);
+const totalMinutes = M => M.all.reduce((s, g) => s + (g.playMinutes || 0), 0);
 const pill = (icon, text) => `<span class="pill">${icon}${text}</span>`;
 
 function avatar(p, cls = ''){
@@ -58,7 +62,8 @@ export function home(M){
   const e = p?.earned;
   const totalTro = e ? e.bronze + e.silver + e.gold + e.platinum : 0;
   const platCount = e?.platinum ?? plats(M).length;
-  const never = M.games.filter(g => g.status === 'never').length;
+  const never = queue(M).length;
+  const folders = buildFolders(M);
 
   const hello = `<header class="hello reveal">${avatar(p)}<div>
     <div class="hello-name">Olá, ${esc(p?.onlineId || 'jogador')}</div>
@@ -86,7 +91,9 @@ export function home(M){
       ${retroTeaser(M)}
       ${rail('Jogados recentemente', pl, '#/biblioteca?f=playing')}
       <div id="wantSlot">${wantRail(M)}</div>
-      ${rail('Quase platinando', near(M), '#/biblioteca?f=near')}
+      ${folders.length ? section('📁 Suas séries', `<div class="rail-row wide">${folders.slice(0, 12).map(folderCard).join('')}</div>`,
+        { count: folders.length, href: '#/biblioteca?f=pastas', sub: 'Jogos do mesmo mundo, juntos numa pasta' }) : ''}
+      ${rail('Quase platinando', near(M))}
       ${rail('Nunca jogados', queue(M), '#/biblioteca?f=never', 'Toque no ＋ pra colocar em "Quero zerar"')}
       ${rail('Platinas recentes', plats(M), '#/platinas')}
     `,
@@ -124,13 +131,14 @@ function heroCard(g){
 }
 
 // ================= BIBLIOTECA =================
-const LIB = { f: 'all', q: '', s: 'recent', p: '' };
+const LIB = { f: 'all', q: '', s: 'recent', p: '', edit: false };
 const TABS = [
-  ['all',      'Todos',          () => true,                                              'Tudo que está na sua conta, mais a sua lista antiga'],
-  ['want',     '⭐ Quero zerar',  isWanted,                                                'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
-  ['playing',  'Jogando',        g => g.status === 'playing' || g.status === 'started',   'Já abriu, ainda não platinou'],
-  ['never',    'Nunca jogados',  g => g.status === 'never',                               'Estão na sua conta, mas você nunca abriu'],
-  ['platinum', 'Platinados',     g => g.status === 'platinum' || g.status === 'complete', 'Platinados ou 100%'],
+  ['all',     'Todos',          () => true,                                                            'Tudo que está na sua conta, mais a sua lista antiga'],
+  ['want',    '⭐ Quero zerar',  isWanted,                                                              'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
+  ['playing', 'Jogando',        g => (g.status === 'playing' || g.status === 'started') && !g.zerado,  'Já abriu e ainda não zerou'],
+  ['zerados', '✅ Zerados',      g => g.zerado,                                                         'Os que você marcou como zerado, mais os platinados e 100% (esses entram sozinhos)'],
+  ['never',   'Nunca jogados',  isNever,                                                               'Estão na sua conta, mas você nunca abriu'],
+  ['pastas',  '📁 Pastas',       null,                                                                  'Jogos do mesmo mundo juntos — toque numa pasta pra abrir'],
 ];
 const SORTS = [['recent', 'Recentes'], ['hours', 'Mais jogados'], ['progress', 'Mais perto da platina'], ['rare', 'Platina mais rara'], ['diff', 'Mais difíceis'], ['name', 'Nome (A–Z)']];
 // "Nunca jogados" separado pela origem, pra não misturar o que você comprou com o que veio no Plus
@@ -141,28 +149,32 @@ const NEVER_GROUPS = [
 ];
 
 function libList(M){
-  const f = (TABS.find(x => x[0] === LIB.f) || TABS[0])[2];
   const q = LIB.q.trim().toLowerCase();
-  const sort = LIB.f === 'never' && LIB.s === 'recent' ? by.name : (by[LIB.s] || by.recent);
-  return M.games
-    .filter(f)
+  const base = LIB.f === 'hidden' ? M.hiddenGames : M.games.filter((TABS.find(x => x[0] === LIB.f) || TABS[0])[2] || (() => true));
+  const sort = (LIB.f === 'never' || LIB.f === 'hidden') && LIB.s === 'recent' ? by.name
+    : LIB.f === 'zerados' && LIB.s === 'recent' ? (a, b) => (b.zeradoAt || Date.parse(b.platEarnedAt || 0) || 0) - (a.zeradoAt || Date.parse(a.platEarnedAt || 0) || 0)
+    : LIB.f === 'want' && LIB.s === 'recent' ? (a, b) => b.wantAt - a.wantAt
+    : (by[LIB.s] || by.recent);
+  return base
     .filter(g => !q || g.name.toLowerCase().includes(q))
     .filter(g => !LIB.p || g.platforms?.includes(LIB.p))
-    .sort(LIB.f === 'want' && LIB.s === 'recent' ? (a, b) => b.wantAt - a.wantAt : sort);
+    .sort(sort);
 }
+const tabCount = (M, v) => v === 'pastas' ? buildFolders(M).length : M.games.filter(TABS.find(t => t[0] === v)[2]).length;
 
 export function library(M, params){
   if (params.f) LIB.f = TABS.some(t => t[0] === params.f) ? params.f : 'all';
+  if (LIB.f === 'hidden' && !M.hiddenGames.length) LIB.f = 'all';
   const plats = [...new Set(M.games.flatMap(g => g.platforms || []))].sort();
-  const list = libList(M);
-  const tab = ([v, l, fn]) => `<button class="lib-tab ${v === 'want' ? 'want' : ''} ${v === LIB.f ? 'on' : ''}" data-f="${v}" role="tab" aria-selected="${v === LIB.f}">${l} <b>${M.games.filter(fn).length}</b></button>`;
+  const list = LIB.f === 'pastas' ? [] : libList(M);
+  const tab = ([v, l]) => `<button class="lib-tab ${v === 'want' ? 'want' : ''} ${v === LIB.f ? 'on' : ''}" data-f="${v}" role="tab" aria-selected="${v === LIB.f}">${l} <b>${tabCount(M, v)}</b></button>`;
   const opt = (group, v, l, cur) => `<button class="chip ${v === cur ? 'on' : ''}" data-${group}="${esc(v)}">${esc(l)}</button>`;
   return {
     wall: list[0]?.hero || list[0]?.cover,
     html: `
       <div class="page-head reveal"><div>
         <h1 class="page-title">Biblioteca</h1>
-        <div class="page-sub">${M.games.length} jogos · ${fmtH(totalMinutes(M))} de jogo registradas</div>
+        <div class="page-sub">${M.games.length} jogos${M.hiddenGames.length ? ` · ${M.hiddenGames.length} ocultos` : ''} · ${fmtH(totalMinutes(M))} de jogo registradas</div>
       </div></div>
       <div class="lib-tabs" id="libF" role="tablist">${TABS.map(tab).join('')}</div>
       <div class="lib-bar">
@@ -171,6 +183,16 @@ export function library(M, params){
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
           <span class="dot" ${LIB.s !== 'recent' || LIB.p ? '' : 'hidden'}></span>
         </button>
+        <button class="icon-btn ${LIB.edit ? 'on' : ''}" id="libEdit" aria-pressed="${LIB.edit}" title="Organizar: ocultar jogos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a14 14 0 0 1-3.1 4.3M6.6 6.6A14 14 0 0 0 2 12c1 2.5 5 7 10 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+        </button>
+      </div>
+      <div class="edit-bar glass" id="editBar" ${LIB.edit || LIB.f === 'hidden' ? '' : 'hidden'}>
+        <span id="editMsg"></span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="mini-btn" id="seeHidden">${LIB.f === 'hidden' ? '← Voltar' : `🙈 Ver ocultos (${M.hiddenGames.length})`}</button>
+          <button class="mini-btn good" id="editDone">Concluir</button>
+        </span>
       </div>
       <div class="glass lib-opts" id="libPanel" hidden>
         <div><div class="ix-lbl" style="margin-bottom:8px">Ordenar por</div>
@@ -183,18 +205,37 @@ export function library(M, params){
     mount(root, ctx){
       const box = root.querySelector('#libGrid');
       const counts = () => root.querySelectorAll('#libF .lib-tab').forEach(c => {
-        c.querySelector('b').textContent = M.games.filter(TABS.find(t => t[0] === c.dataset.f)[2]).length;
+        c.querySelector('b').textContent = tabCount(M, c.dataset.f);
       });
       // marcar/desmarcar "quero zerar" atualiza os contadores e a lista
       ctx.onWant = () => { counts(); if (LIB.f === 'want') draw(); };
 
       const grid = l => `<div class="grid">${l.map(gameCard).join('')}</div>`;
+      const editBar = root.querySelector('#editBar');
       const draw = () => {
+        const hiddenMode = LIB.f === 'hidden';
+        // no modo organizar (ou vendo os ocultos), tocar no card oculta/mostra — tratado no app.js
+        box.className = LIB.edit || hiddenMode ? `lib-editing ${hiddenMode ? 'show-mode' : 'hide-mode'}` : '';
+        editBar.hidden = !(LIB.edit || hiddenMode);
+        root.querySelector('#editMsg').innerHTML = hiddenMode
+          ? '👁 Toque num jogo pra <b>mostrar de novo</b> na biblioteca'
+          : '🙈 Toque nos jogos que você <b>não quer ver</b> — eles somem das listas (dá pra trazer de volta)';
+        root.querySelector('#libHint').textContent = hiddenMode ? 'Jogos que você ocultou' : (TABS.find(t => t[0] === LIB.f)?.[3] || '');
+
+        if (LIB.f === 'pastas') {
+          const q = LIB.q.trim().toLowerCase();
+          const fs = buildFolders(M).filter(f => !q || f.name.toLowerCase().includes(q) || f.games.some(g => g.name.toLowerCase().includes(q)));
+          box.innerHTML = fs.length ? `<div class="folders">${fs.map(folderCard).join('')}</div>` : '<div class="empty">Nenhuma pasta encontrada</div>';
+          animate(box);
+          if (fs[0]) setWall(fs[0].hero);
+          return;
+        }
         const l = libList(M);
-        root.querySelector('#libHint').textContent = TABS.find(t => t[0] === LIB.f)?.[3] || '';
         if (!l.length) {
           box.innerHTML = `<div class="empty">${LIB.f === 'want' && !LIB.q
             ? '⭐ Nada em "Quero zerar" ainda.<br>Toque no <b>＋</b> no canto de qualquer jogo que você quer terminar.'
+            : LIB.f === 'zerados' && !LIB.q
+            ? '✅ Nenhum jogo zerado ainda.<br>Abra um jogo e toque em <b>"Marcar como zerado"</b> — platinados entram sozinhos.'
             : 'Nada por aqui 👀'}</div>`;
         } else if (LIB.f === 'never') {
           box.innerHTML = NEVER_GROUPS.map(([title, fn]) => {
@@ -222,11 +263,26 @@ export function library(M, params){
         optsBtn.querySelector('.dot').hidden = LIB.s === 'recent' && !LIB.p;
         draw();
       });
-      root.querySelector('#libF').addEventListener('click', e => {
-        const b = e.target.closest('.lib-tab'); if (!b) return;
-        LIB.f = b.dataset.f;
-        root.querySelectorAll('#libF .lib-tab').forEach(c => { c.classList.toggle('on', c === b); c.setAttribute('aria-selected', c === b); });
+      const selectTab = v => {
+        LIB.f = v;
+        root.querySelectorAll('#libF .lib-tab').forEach(c => { c.classList.toggle('on', c.dataset.f === v); c.setAttribute('aria-selected', c.dataset.f === v); });
         draw();
+      };
+      root.querySelector('#libF').addEventListener('click', e => {
+        const b = e.target.closest('.lib-tab'); if (b) selectTab(b.dataset.f);
+      });
+      const editBtn = root.querySelector('#libEdit');
+      const setEdit = on => {
+        LIB.edit = on;
+        editBtn.classList.toggle('on', on);
+        editBtn.setAttribute('aria-pressed', on);
+      };
+      editBtn.addEventListener('click', () => { setEdit(!LIB.edit); if (!LIB.edit && LIB.f === 'hidden') LIB.f = 'all'; selectTab(LIB.f); });
+      root.querySelector('#editDone').addEventListener('click', () => { setEdit(false); selectTab(LIB.f === 'hidden' ? 'all' : LIB.f); });
+      root.querySelector('#seeHidden').addEventListener('click', () => {
+        if (LIB.f === 'hidden') { selectTab('all'); return; }
+        if (!M.hiddenGames.length) return ctx.toast('Nenhum jogo oculto');
+        selectTab('hidden');
       });
       draw();
     },
@@ -291,6 +347,18 @@ export function platinas(M){
   };
 }
 
+// linha de data de lançamento (lista de desejos, mais aguardados, pastas)
+function dateLine(i, M){
+  if (!i) return `<span>${M.sources.rawg ? 'Sem dados de lançamento' : 'Data: ative o RAWG no sync'}</span>`;
+  if (i.tba || !i.released) return `<span>Data a confirmar</span>`;
+  const t = new Date(i.released + 'T12:00:00').getTime(), days = Math.ceil((t - Date.now()) / 864e5);
+  // 31/12 é a data que o RAWG usa quando só se sabe o ano
+  if (days > 0 && i.released.endsWith('-12-31')) return `<span>Previsto para ${i.released.slice(0, 4)}</span>`;
+  return days > 0
+    ? `<span>Lança em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown">faltam ${days} dia${days > 1 ? 's' : ''}</span>`
+    : `<span>Lançou em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown out">disponível</span>`;
+}
+
 // ================= LANÇAMENTOS =================
 export function releases(M, params, ctx){
   const active = M.watch.filter(w => !w.removed && !w.bought);
@@ -304,16 +372,6 @@ export function releases(M, params, ctx){
     return (fb - fa) || when(a.info) - when(b.info);
   });
 
-  const dateLine = i => {
-    if (!i) return `<span>${M.sources.rawg ? 'Sem dados de lançamento' : 'Data: ative o RAWG no sync'}</span>`;
-    if (i.tba || !i.released) return `<span>Data a confirmar</span>`;
-    const t = new Date(i.released + 'T12:00:00').getTime(), days = Math.ceil((t - now) / 864e5);
-    // 31/12 é a data que o RAWG usa quando só se sabe o ano
-    if (days > 0 && i.released.endsWith('-12-31')) return `<span>Previsto para ${i.released.slice(0, 4)}</span>`;
-    return days > 0
-      ? `<span>Lança em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown">faltam ${days} dia${days > 1 ? 's' : ''}</span>`
-      : `<span>Lançou em ${fmtDate(i.released + 'T12:00:00')}</span><span class="countdown out">disponível</span>`;
-  };
   const hypeBar = added => added ? `<div class="hype"><div class="hype-top"><span>${ICON.flame.replace('<svg', '<svg width="12" height="12" style="vertical-align:-1px"')} Hype</span><span>${hype(added)}/100</span></div>
     <div class="hype-track"><i data-w="${hype(added)}"></i></div></div>` : '';
   const score = i => i?.rating && i.released && new Date(i.released) < new Date()
@@ -323,7 +381,7 @@ export function releases(M, params, ctx){
     ${art(w.info?.bg && !w.cover ? w.info.bg : w.cover, { alt: w.name, w: 260 })}
     <div>
       <div class="wcard-name">${esc(w.name)}</div>
-      <div class="wcard-date">${dateLine(w.info)}</div>
+      <div class="wcard-date">${dateLine(w.info, M)}</div>
       ${score(w.info)}
       ${hypeBar(w.info?.added)}
       <div class="price ${w.price ? '' : 'none'}">${w.price ? brl(w.price) : 'sem preço definido'}</div>
@@ -338,7 +396,7 @@ export function releases(M, params, ctx){
     <span class="rank">#${i + 1}</span>
     ${art(t.bg, { alt: t.name, w: 260 })}
     <div><div class="wcard-name">${esc(t.name)}</div>
-      <div class="wcard-date">${dateLine(t)}</div>${hypeBar(t.added)}</div></div>`;
+      <div class="wcard-date">${dateLine(t, M)}</div>${hypeBar(t.added)}</div></div>`;
 
   const done = M.watch.filter(w => w.bought || w.removed);
   return {
@@ -385,7 +443,7 @@ export function profile(M){
   const p = M.profile;
   if (!p) return { html: `<div class="page-head"><h1 class="page-title">Perfil</h1></div>${connectCard()}` };
   const e = p.earned;
-  const pl = played(M);
+  const pl = M.all.filter(isPlayed);   // perfil = números da conta inteira (inclui ocultos)
   const top = [...pl].sort(by.hours).filter(g => g.playMinutes > 0).slice(0, 8);
   const maxMin = top[0]?.playMinutes || 1;
   const withPlat = pl.filter(hasPlatDef);
@@ -428,15 +486,66 @@ export function profile(M){
             <div class="bar-val">${fmtH(g.playMinutes)}</div></a>`).join('') || '<div class="empty">Sem tempo registrado</div>'}</div></div>
         <div class="glass panel reveal"><h3>📊 Seus números</h3>
           ${kv('Horas jogadas (PS4/PS5)', fmtH(totalMin))}
-          ${kv('Jogos na conta', M.games.filter(g => g.source === 'psn').length)}
+          ${kv('Jogos na conta', M.all.filter(g => g.source === 'psn').length)}
           ${kv('Jogos iniciados', pl.length)}
-          ${kv('Nunca jogados', M.games.filter(g => g.status === 'never').length)}
+          ${kv('Zerados', `${M.all.filter(g => g.zerado).length} (platinados contam)`)}
+          ${kv('Nunca jogados', M.all.filter(g => g.status === 'never' && !g.zerado).length)}
           ${kv('Taxa de platina', `${platRate}% dos jogos com platina`)}
           ${kv('Média por jogo', pl.length ? fmtH(Math.round(totalMin / Math.max(1, pl.filter(g => g.playMinutes).length))) : '—')}
           ${first ? kv('Jogando desde', fmtDate(first, { month: 'long', year: 'numeric' })) : ''}
           <div class="kv" style="margin-top:14px">${Object.entries(byPlat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="pill">${esc(k)} · ${v}</span>`).join('')}</div>
         </div>
       </div>`,
+  };
+}
+
+// ================= PASTAS (SÉRIES) =================
+function folderCard(f){
+  const covers = f.games.filter(g => g.cover).slice(0, 3);
+  const pct = Math.round(f.zerados / f.games.length * 100);
+  return `<a class="folder reveal" href="#/pasta/${encodeURIComponent(f.id)}" data-wall="${esc(f.hero || '')}" style="--h:${f.hue}">
+    <div class="folder-bg" style="background-image:url('${esc(thumb(f.hero, 800))}')"></div>
+    <div class="folder-stack" style="--n:${covers.length}">${covers.map((g, i) =>
+      `<div class="fs" style="--i:${i};z-index:${i === 1 ? 3 : 1}">${art(g.cover, { w: 240, alt: g.name })}</div>`).join('')}</div>
+    <div class="folder-info">
+      <div class="folder-name">${esc(f.name)}</div>
+      <div class="folder-sub">${f.games.length} jogo${f.games.length > 1 ? "s" : ""} · ${f.zerados} zerado${f.zerados === 1 ? '' : 's'}${f.plats ? ` (${f.plats} 🏆)` : ''}${f.minutes ? ` · ${fmtH(f.minutes)}` : ''}</div>
+      ${f.soon.length ? `<div class="folder-soon">🚀 ${f.soon.length} em breve na série</div>` : ''}
+      <div class="pbar" title="${pct}% da série zerada"><i data-w="${pct}"></i></div>
+    </div></a>`;
+}
+
+export function pasta(M, params, ctx, id){
+  const f = buildFolders(M).find(x => x.id === id);
+  if (!f) return { html: `<a class="see-all" href="#/biblioteca?f=pastas">← Pastas</a><div class="empty">Pasta não encontrada.</div>` };
+  const pct = Math.round(f.zerados / f.games.length * 100);
+  const soonCard = w => `<div class="glass wcard reveal" data-wall="${esc(w.info?.bg || w.cover || '')}">
+    ${art(w.cover || w.info?.bg, { alt: w.name, w: 260 })}
+    <div><div class="wcard-name">${esc(w.name)}</div>
+      <div class="wcard-date">${dateLine(w.info, M)}</div>
+      <div class="price ${w.price ? '' : 'none'}">${w.price ? brl(w.price) : 'sem preço definido'}</div>
+      <div class="wcard-date" style="margin-top:6px"><a class="see-all" href="#/lancamentos">Na sua lista de desejos →</a></div></div></div>`;
+  return {
+    wall: f.hero,
+    html: `
+      <a class="see-all back reveal" href="#/biblioteca?f=pastas">← Todas as pastas</a>
+      <section class="folder-hero reveal" style="--h:${f.hue}">
+        <div class="folder-bg" style="background-image:url('${esc(thumb(f.hero, 1600))}')"></div>
+        <div class="eyebrow">📁 Série</div>
+        <h1 class="hero-title" style="margin:8px 0 14px">${esc(f.name)}</h1>
+        <div class="hero-meta" style="margin:0">
+          ${pill('', `${f.games.length} jogo${f.games.length > 1 ? 's' : ''} no catálogo`)}
+          ${pill('', `✅ ${f.zerados} zerado${f.zerados === 1 ? '' : 's'} (${pct}% da série)`)}
+          ${f.plats ? pill(`<span style="width:14px;height:16px;display:inline-block">${trophySVG('platinum')}</span>`, `${f.plats} platinado${f.plats === 1 ? '' : 's'}`) : ''}
+          ${f.minutes ? pill(ICON.clock, `${fmtH(f.minutes)} jogadas`) : ''}
+          ${f.never ? pill('', `${f.never} nunca jogado${f.never > 1 ? 's' : ''}`) : ''}
+          ${f.soon.length ? pill('', `🚀 ${f.soon.length} em breve`) : ''}
+        </div>
+        <div class="pbar" style="max-width:420px;margin-top:16px;height:6px"><i data-w="${pct}"></i></div>
+      </section>
+      ${section('Na sua conta', `<div class="grid">${f.games.map(gameCard).join('')}</div>`,
+        { count: f.games.length, sub: f.games.some(g => g.rating?.released) ? 'Em ordem de lançamento' : '' })}
+      ${f.soon.length ? section('🚀 Em breve na série', `<div class="wl">${f.soon.map(soonCard).join('')}</div>`, { count: f.soon.length }) : ''}`,
   };
 }
 
@@ -576,6 +685,7 @@ export function detail(M, g){
   const tags = [
     ...(g.platforms || []).map(p => `<span class="tag">${esc(p)}</span>`),
     g.status === 'never' ? '<span class="tag never">NUNCA JOGADO</span>' : '',
+    g.hidden ? '<span class="tag">🙈 OCULTO</span>' : '',
     g.status === 'platinum' ? '<span class="tag" style="background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0">PLATINADO</span>' : '',
     g.plus ? '<span class="tag plus">PLUS</span>' : '',
     g.source === 'lista' ? '<span class="tag list">MINHA LISTA</span>' : '',
@@ -588,8 +698,13 @@ export function detail(M, g){
       <div><h2 class="d-title">${esc(g.name)}</h2><div class="d-tags">${tags}</div>
         ${g.rating?.score ? `<div class="d-rating"><b>★ ${num(Math.round(g.rating.score * 10) / 10)}</b><span>no RAWG${g.rating.count ? ` · ${g.rating.count.toLocaleString('pt-BR')} avaliações` : ''}</span>
           ${g.rating.metacritic ? `<span class="tag" style="background:${g.rating.metacritic >= 75 ? '#2e9d5b' : g.rating.metacritic >= 50 ? '#c9952b' : '#b33a3a'};border:0;color:#fff">Metacritic ${g.rating.metacritic}</span>` : ''}</div>` : ''}
-        ${canZerar(g)
-          ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}" style="margin-top:12px">${wantLabel(g.want)}</button>` : ''}
+        <div class="d-actions">
+          ${canZerar(g) ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}">${wantLabel(g.want)}</button>` : ''}
+          ${g.zeradoAuto
+            ? `<span class="btn ghost zer-big on" title="Platinado ou 100% conta como zerado">✅ Zerado ${g.status === 'platinum' ? '(platina)' : '(100%)'}</span>`
+            : `<button class="btn ghost zer-big ${g.zerado ? 'on' : ''}" data-zerar="${esc(g.key)}" aria-pressed="${g.zerado}">${g.zerado ? `✅ Zerado${g.zeradoAt ? ` em ${fmtDate(new Date(g.zeradoAt).toISOString())}` : ''} · desfazer` : '✅ Marcar como zerado'}</button>`}
+          <button class="btn ghost hide-big" data-hide="${esc(g.key)}" aria-pressed="${g.hidden}">${g.hidden ? '👁 Mostrar na biblioteca' : '🙈 Ocultar'}</button>
+        </div>
       </div></div>
     <div class="d-body">
       <div class="index">

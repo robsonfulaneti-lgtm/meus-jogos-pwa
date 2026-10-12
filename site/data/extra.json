@@ -1,44 +1,250 @@
 {
   "_sobre": "Dados curados à mão, reaproveitados da versão antiga. O sync da PSN tem prioridade: se um jogo daqui aparecer na sua conta, vale o que vem da PSN.",
   "backlog": [
-    { "id": "alan-wake-2",   "name": "Alan Wake 2",                          "cover": "covers/alan-wake-2.jpg",   "hours": 20,   "note": "terminar" },
-    { "id": "re7-eoz",       "name": "Resident Evil 7 — End of Zoe",          "cover": "covers/dlc-r7-eoz.jpg",    "hours": 2.5 },
-    { "id": "lara-croft-go", "name": "Lara Croft GO",                         "cover": "covers/lara-croft-go.jpg", "hours": 4 },
-    { "id": "tr1",           "name": "Tomb Raider I Remastered",              "cover": "covers/tr1.png",           "hours": 7 },
-    { "id": "re-rev",        "name": "Resident Evil Revelations",             "cover": "covers/re-rev.jpg",        "hours": 9 },
-    { "id": "tr2",           "name": "Tomb Raider II Remastered",             "cover": "covers/tr2.png",           "hours": 9 },
-    { "id": "re0",           "name": "Resident Evil 0",                       "cover": "covers/re0.jpg",           "hours": 9 },
-    { "id": "uncharted-2",   "name": "Uncharted 2: Among Thieves",            "cover": "covers/uncharted-2.jpg",   "hours": 9 },
-    { "id": "tr3",           "name": "Tomb Raider III Remastered",            "cover": "covers/tr3.png",           "hours": 9 },
-    { "id": "re1",           "name": "Resident Evil",                         "cover": "covers/re1.jpg",           "hours": 9 },
-    { "id": "uncharted-3",   "name": "Uncharted 3: Drake's Deception",        "cover": "covers/uncharted-3.jpg",   "hours": 9 },
-    { "id": "tr4",           "name": "Tomb Raider: The Last Revelation",      "cover": "covers/tr4.png",           "hours": 9 },
-    { "id": "gta3",          "name": "Grand Theft Auto III",                  "cover": "covers/gta3.jpg",          "hours": 11 },
-    { "id": "re5",           "name": "Resident Evil 5",                       "cover": "covers/re5.jpg",           "hours": 11 },
-    { "id": "tr5",           "name": "Tomb Raider: Chronicles",               "cover": "covers/tr5.png",           "hours": 7 },
-    { "id": "gta-vc",        "name": "Grand Theft Auto: Vice City",           "cover": "covers/gta-vc.jpg",        "hours": 13.5 },
-    { "id": "re6",           "name": "Resident Evil 6",                       "cover": "covers/re6.jpg",           "hours": 13.5 },
-    { "id": "tr6",           "name": "Tomb Raider: The Angel of Darkness",    "cover": "covers/tr6.png",           "hours": 11 },
-    { "id": "mafia-3",       "name": "Mafia III",                             "cover": "covers/mafia-3.jpg",       "hours": 17.5 },
-    { "id": "gta-sa",        "name": "Grand Theft Auto: San Andreas",         "cover": "covers/gta-sa.jpg",        "hours": 27.5 },
-    { "id": "gta-5",         "name": "Grand Theft Auto V",                    "cover": "covers/gta-5.jpg",         "hours": 30 },
-    { "id": "rdr2",          "name": "Red Dead Redemption 2",                 "cover": "covers/rdr2.jpg",          "hours": 55 }
+    {
+      "id": "alan-wake-2",
+      "name": "Alan Wake 2",
+      "cover": "covers/alan-wake-2.jpg",
+      "hours": 20,
+      "note": "terminar"
+    },
+    {
+      "id": "re7-eoz",
+      "name": "Resident Evil 7 — End of Zoe",
+      "cover": "covers/dlc-r7-eoz.jpg",
+      "hours": 2.5
+    },
+    {
+      "id": "lara-croft-go",
+      "name": "Lara Croft GO",
+      "cover": "covers/lara-croft-go.jpg",
+      "hours": 4
+    },
+    {
+      "id": "tr1",
+      "name": "Tomb Raider I Remastered",
+      "cover": "covers/tr1.png",
+      "hours": 7
+    },
+    {
+      "id": "re-rev",
+      "name": "Resident Evil Revelations",
+      "cover": "covers/re-rev.jpg",
+      "hours": 9
+    },
+    {
+      "id": "tr2",
+      "name": "Tomb Raider II Remastered",
+      "cover": "covers/tr2.png",
+      "hours": 9
+    },
+    {
+      "id": "re0",
+      "name": "Resident Evil 0",
+      "cover": "covers/re0.jpg",
+      "hours": 9
+    },
+    {
+      "id": "uncharted-2",
+      "name": "Uncharted 2: Among Thieves",
+      "cover": "covers/uncharted-2.jpg",
+      "hours": 9
+    },
+    {
+      "id": "tr3",
+      "name": "Tomb Raider III Remastered",
+      "cover": "covers/tr3.png",
+      "hours": 9
+    },
+    {
+      "id": "re1",
+      "name": "Resident Evil",
+      "cover": "covers/re1.jpg",
+      "hours": 9
+    },
+    {
+      "id": "uncharted-3",
+      "name": "Uncharted 3: Drake's Deception",
+      "cover": "covers/uncharted-3.jpg",
+      "hours": 9
+    },
+    {
+      "id": "tr4",
+      "name": "Tomb Raider: The Last Revelation",
+      "cover": "covers/tr4.png",
+      "hours": 9
+    },
+    {
+      "id": "gta3",
+      "name": "Grand Theft Auto III",
+      "cover": "covers/gta3.jpg",
+      "hours": 11
+    },
+    {
+      "id": "re5",
+      "name": "Resident Evil 5",
+      "cover": "covers/re5.jpg",
+      "hours": 11
+    },
+    {
+      "id": "tr5",
+      "name": "Tomb Raider: Chronicles",
+      "cover": "covers/tr5.png",
+      "hours": 7
+    },
+    {
+      "id": "gta-vc",
+      "name": "Grand Theft Auto: Vice City",
+      "cover": "covers/gta-vc.jpg",
+      "hours": 13.5
+    },
+    {
+      "id": "re6",
+      "name": "Resident Evil 6",
+      "cover": "covers/re6.jpg",
+      "hours": 13.5
+    },
+    {
+      "id": "tr6",
+      "name": "Tomb Raider: The Angel of Darkness",
+      "cover": "covers/tr6.png",
+      "hours": 11
+    },
+    {
+      "id": "mafia-3",
+      "name": "Mafia III",
+      "cover": "covers/mafia-3.jpg",
+      "hours": 17.5
+    },
+    {
+      "id": "gta-sa",
+      "name": "Grand Theft Auto: San Andreas",
+      "cover": "covers/gta-sa.jpg",
+      "hours": 27.5
+    },
+    {
+      "id": "gta-5",
+      "name": "Grand Theft Auto V",
+      "cover": "covers/gta-5.jpg",
+      "hours": 30
+    },
+    {
+      "id": "rdr2",
+      "name": "Red Dead Redemption 2",
+      "cover": "covers/rdr2.jpg",
+      "hours": 55
+    }
   ],
   "watchlist": [
-    { "id": "b-gta6",          "name": "GTA VI",                               "search": "Grand Theft Auto VI",                "price": 449.50, "cover": "covers/buy-gta6.jpg" },
-    { "id": "b-wolverine",     "name": "Marvel's Wolverine",                   "search": "Marvel's Wolverine",                 "price": 399.90, "cover": "covers/buy-wolverine.jpg" },
-    { "id": "b-sh-townfall",   "name": "Silent Hill: Townfall",                "search": "Silent Hill: Townfall",              "price": 284.90, "cover": "covers/buy-sh-townfall.jpg" },
-    { "id": "b-sh-f",          "name": "Silent Hill f",                        "search": "Silent Hill f",                      "price": 199.95, "cover": "covers/buy-sh-f.jpg" },
-    { "id": "b-veronica",      "name": "Resident Evil Veronica",               "search": "Resident Evil Veronica",             "price": 0,      "cover": "covers/re-veronica.jpg" },
-    { "id": "b-tides",         "name": "Tides of Annihilation",                "search": "Tides of Annihilation",              "price": 0,      "cover": "covers/buy-tides.jpg" },
-    { "id": "b-gow-laufey",    "name": "God of War: Laufey",                   "search": "God of War Laufey",                  "price": 0,      "cover": "covers/buy-gow-laufey.jpg" },
-    { "id": "b-kena",          "name": "Kena: Scars of Kosmora",               "search": "Kena: Scars of Kosmora",             "price": 0,      "cover": "covers/buy-kena.jpg" },
-    { "id": "b-tr-legacy",     "name": "Tomb Raider: Legacy of Atlantis",      "search": "Tomb Raider: Legacy of Atlantis",    "price": 339.90, "cover": "covers/buy-tr-legacy.jpg" },
-    { "id": "b-apt-resonance", "name": "Resonance: A Plague Tale Legacy",      "search": "Resonance: A Plague Tale Legacy",    "price": 339.90, "cover": "covers/buy-apt-resonance.jpg" },
-    { "id": "b-yotei",         "name": "Ghost of Yōtei",                       "search": "Ghost of Yotei",                     "price": 399.90, "cover": "covers/buy-yotei.jpg" },
-    { "id": "b-avatar-legends","name": "Avatar Legends",                       "search": "Avatar Legends",                     "price": 169.90, "cover": "covers/buy-avatar-legends.jpg" },
-    { "id": "b-avatar-qfb",    "name": "Avatar: Quest for Balance",            "search": "Avatar The Last Airbender Quest for Balance", "price": 49.50, "cover": "covers/buy-avatar-qfb.jpg" },
-    { "id": "b-crash",         "name": "Crash Bandicoot N. Sane Trilogy",      "search": "Crash Bandicoot N. Sane Trilogy",    "price": 229.90, "cover": "covers/buy-crash.jpg" },
-    { "id": "b-itt",           "name": "It Takes Two",                         "search": "It Takes Two",                       "price": 59.67,  "cover": "covers/buy-itt.jpg" }
-  ]
+    {
+      "id": "b-gta6",
+      "name": "GTA VI",
+      "search": "Grand Theft Auto VI",
+      "price": 449.5,
+      "cover": "covers/buy-gta6.jpg"
+    },
+    {
+      "id": "b-wolverine",
+      "name": "Marvel's Wolverine",
+      "search": "Marvel's Wolverine",
+      "price": 399.9,
+      "cover": "covers/buy-wolverine.jpg"
+    },
+    {
+      "id": "b-sh-townfall",
+      "name": "Silent Hill: Townfall",
+      "search": "Silent Hill: Townfall",
+      "price": 284.9,
+      "cover": "covers/buy-sh-townfall.jpg"
+    },
+    {
+      "id": "b-sh-f",
+      "name": "Silent Hill f",
+      "search": "Silent Hill f",
+      "price": 199.95,
+      "cover": "covers/buy-sh-f.jpg"
+    },
+    {
+      "id": "b-veronica",
+      "name": "Resident Evil Veronica",
+      "search": "Resident Evil Veronica",
+      "price": 0,
+      "cover": "covers/re-veronica.jpg"
+    },
+    {
+      "id": "b-tides",
+      "name": "Tides of Annihilation",
+      "search": "Tides of Annihilation",
+      "price": 0,
+      "cover": "covers/buy-tides.jpg"
+    },
+    {
+      "id": "b-gow-laufey",
+      "name": "God of War: Laufey",
+      "search": "God of War Laufey",
+      "price": 0,
+      "cover": "covers/buy-gow-laufey.jpg"
+    },
+    {
+      "id": "b-kena",
+      "name": "Kena: Scars of Kosmora",
+      "search": "Kena: Scars of Kosmora",
+      "price": 0,
+      "cover": "covers/buy-kena.jpg"
+    },
+    {
+      "id": "b-tr-legacy",
+      "name": "Tomb Raider: Legacy of Atlantis",
+      "search": "Tomb Raider: Legacy of Atlantis",
+      "price": 339.9,
+      "cover": "covers/buy-tr-legacy.jpg"
+    },
+    {
+      "id": "b-apt-resonance",
+      "name": "Resonance: A Plague Tale Legacy",
+      "search": "Resonance: A Plague Tale Legacy",
+      "price": 339.9,
+      "cover": "covers/buy-apt-resonance.jpg"
+    },
+    {
+      "id": "b-yotei",
+      "name": "Ghost of Yōtei",
+      "search": "Ghost of Yotei",
+      "price": 399.9,
+      "cover": "covers/buy-yotei.jpg"
+    },
+    {
+      "id": "b-avatar-legends",
+      "name": "Avatar Legends",
+      "search": "Avatar Legends",
+      "price": 169.9,
+      "cover": "covers/buy-avatar-legends.jpg"
+    },
+    {
+      "id": "b-avatar-qfb",
+      "name": "Avatar: Quest for Balance",
+      "search": "Avatar The Last Airbender Quest for Balance",
+      "price": 49.5,
+      "cover": "covers/buy-avatar-qfb.jpg"
+    },
+    {
+      "id": "b-crash",
+      "name": "Crash Bandicoot N. Sane Trilogy",
+      "search": "Crash Bandicoot N. Sane Trilogy",
+      "price": 229.9,
+      "cover": "covers/buy-crash.jpg"
+    },
+    {
+      "id": "b-itt",
+      "name": "It Takes Two",
+      "search": "It Takes Two",
+      "price": 59.67,
+      "cover": "covers/buy-itt.jpg"
+    }
+  ],
+  "releaseOverride": {
+    "_sobre": "Data do jogo original pra ordenar as pastas quando o RAWG não acha (coletâneas remaster)",
+    "Tomb Raider I-III Remastered Starring Lara Croft": "1996-10-25",
+    "Tomb Raider IV-VI Remastered": "1999-11-19"
+  }
 }

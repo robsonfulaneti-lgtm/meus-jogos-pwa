@@ -40,9 +40,13 @@ function play(el){
   el.querySelectorAll('[data-count]').forEach(countUp);
 }
 
-export function animate(root){
+// instant = redesenho da mesma tela: tudo já aparece no estado final, sem animar de novo
+export function animate(root, instant = false){
   const targets = root.querySelectorAll('.reveal, .gcard, .ring, .pbar, [data-count], [data-w], [data-h]');
-  for (const t of targets) io && !reduce ? io.observe(t) : play(t);
+  for (const t of targets) {
+    if (instant || !io || reduce) play(t);
+    else io.observe(t);
+  }
   if (finePointer && !reduce) tilt(root);
 }
 
@@ -51,7 +55,7 @@ export function countUp(el){
   el.dataset.done = 1;
   const end = +el.dataset.count, dec = +(el.dataset.dec || 0);
   const fmt = v => v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-  if (reduce || !end) { el.textContent = fmt(end); return; }
+  if (reduce || !end || el.closest('.instant')) { el.textContent = fmt(end); return; }
   const t0 = performance.now(), dur = 1200 + Math.min(800, end * 2);
   const step = t => {
     const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 4);
@@ -95,12 +99,34 @@ export function sparkles(host, n = 14){
   }
 }
 
+// ---------- confete (jogo zerado) ----------
+export function confetti(x = innerWidth / 2, y = innerHeight / 2){
+  if (reduce) return;
+  const colors = ['#3d8bff', '#00d1ff', '#ffffff', '#f2c14e', '#3ddc97', '#b388ff'];
+  const layer = document.createElement('div');
+  layer.className = 'confetti';
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement('i');
+    const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 260;
+    p.style.cssText = `left:${x}px;top:${y}px;background:${colors[i % colors.length]};` +
+      `--dx:${Math.cos(a) * v}px;--dy:${Math.sin(a) * v - 140}px;--r:${Math.random() * 720 - 360}deg;` +
+      `animation-delay:${Math.random() * 80}ms;width:${6 + Math.random() * 6}px;height:${8 + Math.random() * 8}px`;
+    layer.appendChild(p);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 1700);
+}
+
 // ---------- troca de tela com transição ----------
 export function transition(fn){
   if (!document.startViewTransition || reduce || document.hidden) return fn();
+  let done = false;
+  const run = () => { if (!done) { done = true; fn(); } };
   try {
-    const vt = document.startViewTransition(fn);
+    const vt = document.startViewTransition(run);
     // uma transição interrompida por outra navegação não é erro pra gente
     for (const p of [vt.ready, vt.finished, vt.updateCallbackDone]) p?.catch(() => {});
-  } catch { fn(); }
+    // se o navegador não pintar a tempo (aparelho lento, aba em segundo plano), troca sem animar
+    setTimeout(() => { if (!done) { vt.skipTransition?.(); run(); } }, 350);
+  } catch { run(); }
 }

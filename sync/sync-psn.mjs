@@ -265,22 +265,44 @@ async function enrichRawg(env, games, watch){
     released: g.released, tba: g.tba, added: g.added, bg: g.background_image, playtime: g.playtime,
   });
   // só aceita resultado com nome igual ou contido no outro; a lista de desejos (curada) aceita o primeiro
+  // nomes que o RAWG escreve diferente
+  const ALIAS = { 'resident evil 0': 'Resident Evil Zero' };
   async function lookup(name, loose = false){
+    if (ALIAS[norm(name)]) name = ALIAS[norm(name)];
     const k = norm(name);
     if (k in cache && !FULL) return cache[k];
     try {
       const r = await rawg(env, `games?search=${encodeURIComponent(name)}&search_precise=true&page_size=5`);
       const res = r.results || [];
       const exact = res.find(x => norm(x.name) === k);
-      const close = res.find(x => { const n = norm(x.name); return n.length >= 5 && k.length >= 5 && (n.includes(k) || k.includes(n)); });
+      // "contido no outro" só vale se os nomes tiverem tamanho parecido
+      // ("mafia iii" ~ "mafia iii definitive" sim; "tomb raider" ~ "tomb raider i iii starring lara croft" não)
+      const close = res.find(x => {
+        const n = norm(x.name), [s, l] = n.length < k.length ? [n, k] : [k, n];
+        if (s.length < 5 || !l.includes(s) || s.length / l.length < 0.45) return false;
+        // "tomb raider" x "tomb raider iv vi": a diferença é número de sequência -> outro jogo
+        const extra = l.replace(s, ' ').trim().split(' ')[0];
+        return !/^(\d+|i{1,3}|iv|v|vi{1,3}|ix|x|zero)$/.test(extra);
+      });
       cache[k] = pick(exact || close || (loose ? res[0] : null) || null);
     } catch (e) { log('RAWG falhou para', name, e.message); cache[k] = cache[k] ?? null; }
     await sleep(120);
     return cache[k];
   }
+  // nome do jogo original, pra ordem da série: "GTA III – The Definitive Edition" -> "GTA III"
+  const baseName = n => n
+    .replace(/\(playstation.?\d\)|ps4 ?& ?ps5|[™®©]/gi, ' ')
+    .replace(/[–—:-]?\s*(the )?(definitive|classic|game of the year|goty|complete|deluxe|ultimate)( edition)?\b.*$/i, '')
+    .replace(/\b(remastered|remaster|hd)\b/gi, '')
+    .replace(/[\s–—:-]+$/, '').replace(/\s+/g, ' ').trim();
   for (const g of games) {
     const info = await lookup(g.name);
     if (info) g.rating = { score: info.rating, count: info.ratings, metacritic: info.metacritic, released: info.released };
+    const base = baseName(g.name);
+    if (base && norm(base) !== norm(g.name)) {
+      const orig = await lookup(base);
+      if (orig?.released) (g.rating ||= {}).orig = orig.released;
+    }
   }
   const watchOut = [];
   for (const w of watch) {
