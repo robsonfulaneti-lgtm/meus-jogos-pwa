@@ -1,5 +1,5 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
-import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb } from './ui.js';
+import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
 import { saveOverride, watchAction, loadTrophies } from './data.js';
 import { sparkles, animate, setWall } from './fx.js';
 
@@ -17,21 +17,25 @@ const played = M => M.games.filter(g => g.source === 'psn' && g.status !== 'neve
 const plats  = M => M.games.filter(g => g.status === 'platinum').sort((a, b) => (b.platEarnedAt || '').localeCompare(a.platEarnedAt || ''));
 const isNear = g => g.status !== 'platinum' && hasPlatDef(g) && g.trophies.progress >= 50;
 const near   = M => M.games.filter(isNear).sort(by.progress);
-const queue  = M => M.games.filter(g => g.status === 'never').sort((a, b) => (a.source === 'lista') - (b.source === 'lista') || by.name(a, b));
+const queue  = M => M.games.filter(g => g.status === 'never').sort((a, b) => b.want - a.want || (a.source === 'lista') - (b.source === 'lista') || by.name(a, b));
+const isWanted = g => g.want && (g.status === 'never' || g.status === 'started');
+const wanted = M => M.games.filter(isWanted).sort((a, b) => b.wantAt - a.wantAt);
 const totalMinutes = M => M.games.reduce((s, g) => s + (g.playMinutes || 0), 0);
 const pill = (icon, text) => `<span class="pill">${icon}${text}</span>`;
 
 function avatar(p, cls = ''){
   return `<div class="avatar ${cls}">${p?.avatar ? `<img src="${esc(p.avatar)}" alt="">` : esc((p?.onlineId || '?')[0].toUpperCase())}</div>`;
 }
-function section(title, body, { count, href, cls = '' } = {}){
+function section(title, body, { count, href, cls = '', sub = '' } = {}){
   return `<section class="section reveal ${cls}"><div class="section-head">
-    <h2 class="section-title">${title}${count != null ? ` <span class="count">${count}</span>` : ''}</h2>
+    <div><h2 class="section-title">${title}${count != null ? ` <span class="count">${count}</span>` : ''}</h2>
+    ${sub ? `<div class="page-sub" style="margin-top:4px">${sub}</div>` : ''}</div>
     ${href ? `<a class="see-all" href="${href}">Ver tudo →</a>` : ''}</div>${body}</section>`;
 }
-const rail = (title, list, href) => list.length
-  ? section(title, `<div class="rail-row">${list.slice(0, 16).map(gameCard).join('')}</div>`, { count: list.length, href })
+const rail = (title, list, href, sub) => list.length
+  ? section(title, `<div class="rail-row">${list.slice(0, 16).map(gameCard).join('')}</div>`, { count: list.length, href, sub })
   : '';
+const wantRail = M => rail('⭐ Quero jogar', wanted(M), '#/biblioteca?f=want', 'Os jogos que você escolheu da sua fila');
 
 function connectCard(){
   return `<section class="glass connect reveal" style="margin-top:22px">
@@ -79,10 +83,18 @@ export function home(M){
         ${stat(`<span style="color:var(--warn);display:block;width:40px;height:40px">${ICON.book}</span>`, never, 'Nunca jogados', 'rgba(255,181,71,.28)')}
       </div>
       ${rail('Jogados recentemente', pl, '#/biblioteca?f=playing')}
+      <div id="wantSlot">${wantRail(M)}</div>
       ${rail('Quase platinando', near(M), '#/biblioteca?f=near')}
-      ${rail('Nunca jogados', queue(M), '#/biblioteca?f=never')}
+      ${rail('Nunca jogados', queue(M), '#/biblioteca?f=never', 'Toque no ＋ dos que você quer jogar')}
       ${rail('Platinas recentes', plats(M), '#/platinas')}
     `,
+    mount(root, ctx){
+      ctx.onWant = () => {
+        const slot = root.querySelector('#wantSlot');
+        slot.innerHTML = wantRail(M);
+        animate(slot);
+      };
+    },
   };
 }
 
@@ -113,6 +125,7 @@ function heroCard(g){
 const LIB = { f: 'all', q: '', s: 'recent', p: '' };
 const FILTERS = [
   ['all',      'Todos',             () => true],
+  ['want',     '⭐ Quero jogar',     isWanted],
   ['never',    'Nunca jogados',     g => g.status === 'never'],
   ['playing',  'Em andamento',      g => g.status === 'playing' || g.status === 'started'],
   ['near',     'Quase platinando',  isNear],
@@ -149,8 +162,15 @@ export function library(M, params){
         <div class="chips" id="libF">${FILTERS.map(([v, l, fn]) => `<button class="chip ${v === LIB.f ? 'on' : ''}" data-f="${v}">${l} <span>${M.games.filter(fn).length}</span></button>`).join('')}</div>
       </div>
       <div class="grid" id="libGrid"></div>`,
-    mount(root){
+    mount(root, ctx){
       const grid = root.querySelector('#libGrid');
+      // marcar/desmarcar "quero jogar" atualiza os contadores e a lista filtrada
+      ctx.onWant = () => {
+        root.querySelectorAll('#libF .chip').forEach(c => {
+          c.querySelector('span').textContent = M.games.filter(FILTERS.find(f => f[0] === c.dataset.f)[2]).length;
+        });
+        if (LIB.f === 'want') draw();
+      };
       const draw = () => {
         const l = libList(M);
         grid.innerHTML = l.length ? l.map(gameCard).join('') : `<div class="empty" style="grid-column:1/-1">Nada por aqui 👀</div>`;
@@ -174,32 +194,41 @@ export function library(M, params){
 }
 
 // ================= PLATINAS =================
+// uma entrada por platina conquistada (PS4 e PS5 do mesmo jogo ficam separadas, cada uma no seu ano)
+export const platEntries = M => plats(M).flatMap(g =>
+  (g.plats?.length ? g.plats : [{ at: g.platEarnedAt, rate: g.trophies?.plat?.rate, platform: g.platforms?.[0] }])
+    .map(p => ({ g, ...p }))
+).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+
 export function platinas(M){
-  const list = plats(M);
-  const withRate = list.filter(g => g.trophies?.plat?.rate != null);
-  const rarest = [...withRate].sort((a, b) => a.trophies.plat.rate - b.trophies.plat.rate)[0];
+  const list = platEntries(M);
+  const games = new Set(list.map(e => e.g.key)).size;
+  const withRate = list.filter(e => e.rate != null);
+  const rarest = [...withRate].sort((a, b) => a.rate - b.rate)[0];
   const buckets = { ultra: 0, very: 0, rare: 0, common: 0 };
-  withRate.forEach(g => buckets[rarity(g.trophies.plat.rate).k]++);
+  withRate.forEach(e => buckets[rarity(e.rate).k]++);
   const max = Math.max(1, ...Object.values(buckets));
   const labels = { ultra: 'Ultra raras <5%', very: 'Muito raras 5–15%', rare: 'Raras 15–50%', common: 'Comuns >50%' };
-  const timed = list.filter(g => g.playMinutes > 0);
+  const timed = plats(M).filter(g => g.playMinutes > 0);
   const avgMin = timed.length ? timed.reduce((s, g) => s + g.playMinutes, 0) / timed.length : 0;
   const count = M.profile?.earned?.platinum ?? list.length;
+  const doubles = plats(M).filter(g => (g.plats?.length || 0) > 1).length;
 
   const years = {};
-  for (const g of list) (years[(g.platEarnedAt || '').slice(0, 4) || '—'] ||= []).push(g);
+  for (const e of list) (years[(e.at || '').slice(0, 4) || '—'] ||= []).push(e);
 
-  const pcard = g => {
-    const r = g.trophies?.plat?.rate, rk = rarity(r);
+  const pcard = ({ g, at, rate, platform }) => {
+    const rk = rarity(rate);
+    const multi = (g.plats?.length || 0) > 1;
     return `<a class="glass pcard reveal" href="#/jogo/${encodeURIComponent(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
       ${art(g.cover, { alt: g.name, w: 200 })}
-      <div><div class="pcard-name">${esc(g.name)}${g.platCount > 1 ? ` <span class="tag" title="Platinado em ${g.platCount} versões" style="background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0;vertical-align:2px">×${g.platCount}</span>` : ''}</div>
-      <div class="pcard-sub">${fmtDate(g.platEarnedAt)}${g.playMinutes ? ` · ${fmtH(g.playMinutes)}` : ''}${g.difficulty != null ? ` · ◆ ${num(g.difficulty)}` : ''}</div></div>
-      <div class="rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(r)}<small>${rk?.label || ''}</small></div></a>`;
+      <div><div class="pcard-name">${esc(g.name)}</div>
+      <div class="pcard-sub">${platform ? `<span class="tag" style="${multi ? 'background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0' : ''}">${esc(platform)}</span> ` : ''}${fmtDate(at)}${!multi && g.playMinutes ? ` · ${fmtH(g.playMinutes)}` : ''}${g.difficulty != null ? ` · ◆ ${num(g.difficulty)}` : ''}</div></div>
+      <div class="rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(rate)}<small>${rk?.label || ''}</small></div></a>`;
   };
 
   return {
-    wall: list[0]?.hero || list[0]?.cover,
+    wall: list[0]?.g.hero || list[0]?.g.cover,
     html: `
       <div class="page-head reveal"><div><h1 class="page-title">Estante de platinas</h1>
         <div class="page-sub">Cada platina com a % de jogadores no mundo que também conseguiram</div></div></div>
@@ -207,9 +236,9 @@ export function platinas(M){
         <div class="big-trophy" id="bigTrophy">${trophySVG('platinum', { shine: true })}</div>
         <div>
           <div class="plat-count" data-count="${count}">0</div>
-          <div style="color:var(--muted);font-weight:600;margin-top:4px">platinas conquistadas${count > list.length ? ` em ${list.length} jogos` : ''}${avgMin ? ` · média de ${fmtH(Math.round(avgMin))} por jogo` : ''}</div>
-          ${count > list.length ? `<div style="color:var(--dim);font-size:12.5px;margin-top:4px">${list.filter(g => g.platCount > 1).length} jogos platinados no PS4 e no PS5 (marcados com ×2)</div>` : ''}
-          ${rarest ? `<div style="margin-top:12px;font-size:14px">A mais rara: <b>${esc(rarest.name)}</b> — <span class="r-${rarity(rarest.trophies.plat.rate).k}" style="font-weight:800">${fmtPct(rarest.trophies.plat.rate)}</span> dos jogadores</div>` : ''}
+          <div style="color:var(--muted);font-weight:600;margin-top:4px">platinas conquistadas${games < list.length ? ` em ${games} jogos` : ''}${avgMin ? ` · média de ${fmtH(Math.round(avgMin))} por jogo` : ''}</div>
+          ${doubles ? `<div style="color:var(--dim);font-size:12.5px;margin-top:4px">${doubles} jogos platinados em duas versões — cada platina aparece no seu ano, com a etiqueta da versão</div>` : ''}
+          ${rarest ? `<div style="margin-top:12px;font-size:14px">A mais rara: <b>${esc(rarest.g.name)}</b>${(rarest.g.plats?.length || 0) > 1 ? ` (${esc(rarest.platform)})` : ''} — <span class="r-${rarity(rarest.rate).k}" style="font-weight:800">${fmtPct(rarest.rate)}</span> dos jogadores</div>` : ''}
           ${withRate.length ? `<div class="rarity-bars">${Object.keys(buckets).map(k => `
             <div class="rb"><span>${labels[k]}</span><div class="rb-track"><i class="bg-${k}" data-w="${buckets[k] / max * 100}"></i></div><b>${buckets[k]}</b></div>`).join('')}</div>` : ''}
         </div>
@@ -386,7 +415,10 @@ export function detail(M, g){
     <div class="d-banner"><div class="bg" style="background-image:url('${esc(thumb(g.hero || g.cover, 1600))}')"></div>
       <button class="d-close" data-close aria-label="Fechar">${ICON.close.replace('<svg', '<svg stroke="#fff" stroke-width="2.4"')}</button></div>
     <div class="d-head">${art(g.cover, { alt: g.name, w: 400 })}
-      <div><h2 class="d-title">${esc(g.name)}</h2><div class="d-tags">${tags}</div></div></div>
+      <div><h2 class="d-title">${esc(g.name)}</h2><div class="d-tags">${tags}</div>
+        ${g.status === 'never' || g.status === 'started'
+          ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}" style="margin-top:12px">${wantLabel(g.want)}</button>` : ''}
+      </div></div>
     <div class="d-body">
       <div class="index">
         <div class="glass ix" id="ixDiff">
@@ -419,7 +451,9 @@ export function detail(M, g){
             ${g.playMinutes ? `<span>Jogado <b>${fmtH(g.playMinutes)}</b></span>` : ''}
             ${g.firstPlayed ? `<span>Desde <b>${fmtDate(g.firstPlayed)}</b></span>` : ''}
             ${g.lastPlayed ? `<span>Última vez <b>${relTime(g.lastPlayed)}</b></span>` : ''}
-            ${g.platEarnedAt ? `<span>Platinado em <b>${fmtDate(g.platEarnedAt)}</b></span>` : ''}
+            ${(g.plats?.length || 0) > 1
+              ? g.plats.map(p => `<span>Platina ${esc(p.platform)} em <b>${fmtDate(p.at)}</b> (${fmtPct(p.rate)})</span>`).join('')
+              : g.platEarnedAt ? `<span>Platinado em <b>${fmtDate(g.platEarnedAt)}</b></span>` : ''}
             ${t.rarest ? `<span>Troféu mais raro: <b>${esc(t.rarest.name)}</b> (${fmtPct(t.rarest.rate)})</span>` : ''}
           </div>
         </div></div>`
@@ -473,6 +507,12 @@ export function mountDetail(panel, M, g, ctx){
     if (!road) return;
     road.innerHTML = list?.length ? roadmap(list, g) : '<div class="glass note" style="margin-top:20px">Não achei a lista de troféus desse jogo — rode o sync de novo.</div>';
     road.addEventListener('click', e => {
+      const tb = e.target.closest('[data-tab]');
+      if (tb) {
+        road.querySelectorAll('[data-tab]').forEach(b => { b.classList.toggle('on', b === tb); b.setAttribute('aria-selected', b === tb); });
+        road.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== tb.dataset.tab);
+        return;
+      }
       const h = e.target.closest('.hidden-t'); if (h) h.classList.toggle('show');
       const m = e.target.closest('[data-more]');
       if (m) { m.previousElementSibling.querySelectorAll('.tro[hidden]').forEach(x => x.hidden = false); m.remove(); }
@@ -510,14 +550,26 @@ function roadmap(list, g){
     : `<div class="goal">${trophySVG('gold', { shine: true })}<div><div style="font-family:var(--display);font-weight:800;font-size:18px">Sem platina — objetivo é 100%</div>
         <div style="color:var(--muted);font-size:13px;margin-top:4px">${pending.length} troféus faltando</div></div></div>`;
 
+  // abre em "Conquistados" quando não falta nada
+  const tab = pending.length ? 'pend' : 'done';
+  const pendPane = pending.length ? `
+      ${next.length ? `<h3>Próximos passos <span class="count">ordem sugerida: dos mais comuns aos mais raros</span></h3>
+        <div>${next.map((x, i) => troRow(x, i + 1)).join('')}</div>` : ''}
+      ${rest.length ? `<h3>${next.length ? 'Depois' : 'Faltam'} <span class="count">${rest.length}</span></h3>
+        <div>${rest.map((x, i) => troRow(x).replace('<div class="tro', i >= 12 ? '<div hidden class="tro' : '<div class="tro')).join('')}</div>
+        ${rest.length > 12 ? `<button class="mini-btn more" data-more>Mostrar mais ${rest.length - 12}</button>` : ''}` : ''}`
+    : `<div class="glass note" style="margin-top:16px">Não falta nenhum troféu. 🎉</div>`;
+  const donePane = done.length
+    ? `<div style="margin-top:14px">${done.map(x => troRow(x)).join('')}</div>`
+    : `<div class="glass note" style="margin-top:16px">Nenhum troféu ainda — o primeiro passo está na aba ao lado.</div>`;
+
   return `
     <h3>🧭 Rumo à platina</h3>
     ${goal}
-    ${next.length ? `<h3>Próximos passos <span class="count">ordem sugerida: dos mais comuns aos mais raros</span></h3>
-      <div>${next.map((x, i) => troRow(x, i + 1)).join('')}</div>` : ''}
-    ${rest.length ? `<h3>Restantes <span class="count">${rest.length}</span></h3>
-      <div>${rest.map((x, i) => troRow(x).replace('<div class="tro', i >= 12 ? '<div hidden class="tro' : '<div class="tro')).join('')}</div>
-      ${rest.length > 12 ? `<button class="mini-btn more" data-more>Mostrar mais ${rest.length - 12}</button>` : ''}` : ''}
-    ${done.length ? `<details style="margin-top:24px"><summary style="cursor:pointer;font-family:var(--display);font-weight:700;font-size:16px">✔ Conquistados <span class="count" style="color:var(--muted);font-size:12px">${done.length}</span></summary>
-      <div style="margin-top:10px">${done.map(x => troRow(x)).join('')}</div></details>` : ''}`;
+    <div class="seg" role="tablist">
+      <button role="tab" data-tab="pend" class="${tab === 'pend' ? 'on' : ''}" aria-selected="${tab === 'pend'}">Faltam <span>${pending.length}</span></button>
+      <button role="tab" data-tab="done" class="${tab === 'done' ? 'on' : ''}" aria-selected="${tab === 'done'}">✔ Conquistados <span>${done.length}</span></button>
+    </div>
+    <div data-pane="pend" ${tab === 'pend' ? '' : 'hidden'}>${pendPane}</div>
+    <div data-pane="done" ${tab === 'done' ? '' : 'hidden'}>${donePane}</div>`;
 }

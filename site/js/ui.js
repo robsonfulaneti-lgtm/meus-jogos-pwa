@@ -113,6 +113,8 @@ export function gameCard(g){
   const pct = tro?.progress ?? 0;
   const isPlat = g.status === 'platinum';
   const tags = [];
+  const canWant = g.status === 'never' || g.status === 'started';
+  if (canWant) tags.push(`<span class="tag wanttag">QUERO JOGAR</span>`);
   if (g.status === 'never') tags.push(`<span class="tag never">NUNCA JOGADO</span>`);
   else if (g.source === 'lista') tags.push(`<span class="tag list">MINHA LISTA</span>`);
   if (g.plus) tags.push(`<span class="tag plus">PLUS</span>`);
@@ -121,17 +123,26 @@ export function gameCard(g){
     : tro ? ring(pct, { size: 34, th: 4, label: false }) : '';
   const sub = [g.platforms?.slice(0, 2).join(' · ')];
   if (g.difficulty != null) sub.push(`<span style="color:${diffInfo(g.difficulty).color}">◆ ${String(g.difficulty).replace('.', ',')}</span>`);
-  return `<a class="gcard ${isPlat ? 'is-plat' : ''}" href="#/jogo/${encodeURIComponent(g.key)}" data-key="${esc(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
+  return `<a class="gcard ${isPlat ? 'is-plat' : ''} ${canWant && g.want ? 'wanted' : ''}" href="#/jogo/${encodeURIComponent(g.key)}" data-key="${esc(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
     ${art(g.cover, { alt: g.name, inner: `
       <div class="shade"></div>
       <div class="tl">${tags.join('')}</div>
       <div class="tr">${corner}</div>
-      <div class="bl">${g.playMinutes ? `<span class="hrs">⏱ ${fmtH(g.playMinutes)}</span>` : g.hoursEst ? `<span class="hrs" style="opacity:.8">~${String(g.hoursEst).replace('.', ',')} h</span>` : ''}</div>` })}
+      <div class="bl">${g.playMinutes ? `<span class="hrs">⏱ ${fmtH(g.playMinutes)}</span>` : g.hoursEst ? `<span class="hrs" style="opacity:.8">~${String(g.hoursEst).replace('.', ',')} h</span>` : ''}</div>
+      ${canWant ? `<div class="br">${wantBtn(g)}</div>` : ''}` })}
     <div class="gname">${esc(g.name)}</div>
     <div class="gsub">${sub.filter(Boolean).join(' · ') || '&nbsp;'}</div>
     ${tro ? `<div class="pbar"><i data-w="${pct}"></i></div>` : ''}
   </a>`;
 }
+
+// botão "quero jogar" (é um span porque fica dentro do link do card)
+export function wantBtn(g){
+  return `<span class="want-btn ${g.want ? 'on' : ''}" role="button" tabindex="0" aria-pressed="${g.want}" title="Quero jogar" aria-label="Quero jogar ${esc(g.name)}" data-want="${esc(g.key)}">
+    <svg class="i-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    <svg class="i-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>`;
+}
+export const wantLabel = on => on ? '✓ Na lista "Quero jogar"' : '＋ Quero jogar';
 
 // ícones de linha usados em vários lugares
 export const ICON = {

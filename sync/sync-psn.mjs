@@ -414,6 +414,11 @@ async function main(){
       key: g.key, name: pretty(g.name),
       platforms: [...new Set([...g.platforms].filter(p => p !== '?').map(p => PLAT_LABEL[p] || p))],
       platCount: g.trophySets.filter(s => s.plat?.earned).length,
+      // cada platina separada: PS4 e PS5 do mesmo jogo podem ter sido feitas em anos diferentes
+      plats: g.trophySets.filter(s => s.plat?.earned).map(s => ({
+        set: s.id, at: s.plat.at, rate: s.plat.rate,
+        platform: s.platform.split(',').map(p => PLAT_LABEL[p] || p).join('/'),
+      })).sort((a, b) => (a.at || '').localeCompare(b.at || '')),
       cover: g.cover, hero: g.hero, logo: g.logo, genres: g.genres,
       owned: g.owned, plus: g.plus, preorder: g.preorder,
       playMinutes: g.playMinutes, playCount: g.playCount, firstPlayed: g.firstPlayed, lastPlayed: g.lastPlayed,

@@ -1,6 +1,7 @@
-import { loadModel } from './data.js';
+import { loadModel, toggleWant } from './data.js';
 import * as V from './views.js';
 import { animate, setWall, transition } from './fx.js';
+import { wantLabel } from './ui.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -40,6 +41,7 @@ function drawMain(r, force = false){
   transition(() => {
     view.innerHTML = out.html;
     if (!force) { view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); }
+    ctx.onWant = null;
     out.mount?.(view, ctx);
     animate(view);
     window.scrollTo(0, y);
@@ -96,6 +98,32 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hid
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#/jogo/"]');
   if (a) openedFromApp = true;
+});
+
+// "Quero jogar": funciona nos cards (que são links) e no detalhe.
+// Fase de captura pra rodar antes do link abrir o jogo.
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-want]');
+  if (!b) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const key = b.dataset.want, g = M.byKey.get(key);
+  if (!g) return;
+  g.wantAt = toggleWant(key);
+  g.want = !!g.wantAt;
+  document.querySelectorAll('[data-want]').forEach(el => {
+    if (el.dataset.want !== key) return;
+    el.classList.toggle('on', g.want);
+    el.setAttribute('aria-pressed', g.want);
+    if (el.classList.contains('want-big')) el.textContent = wantLabel(g.want);
+    el.closest('.gcard')?.classList.toggle('wanted', g.want);
+  });
+  if (g.want && navigator.vibrate) navigator.vibrate(18);
+  toast(g.want ? `⭐ ${g.name} → Quero jogar` : `${g.name} saiu de Quero jogar`);
+  ctx.onWant?.();
+}, true);
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('span[data-want]')) { e.preventDefault(); e.target.click(); }
 });
 
 // papel de parede acompanha o jogo sob o mouse (no desktop)

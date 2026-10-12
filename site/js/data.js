@@ -50,7 +50,10 @@ export async function loadModel(){
     }
   }
 
+  const want = store.get('g.want.v1', {});
   for (const g of games) {
+    g.want = !!want[g.key];
+    g.wantAt = want[g.key] || 0;
     const o = ovr[g.key];
     g.diffAuto = g.difficulty;
     if (o?.diff != null) g.difficulty = o.diff;
@@ -88,6 +91,14 @@ export function saveOverride(key, patch){
   all[key] = { ...(all[key] || {}), ...patch };
   for (const k of Object.keys(all[key])) if (all[key][k] == null) delete all[key][k];
   store.set('g.ovr.v1', all);
+}
+
+// "Quero jogar": guarda a hora em que foi marcado, pra manter a ordem da sua escolha
+export function toggleWant(key){
+  const w = store.get('g.want.v1', {});
+  if (w[key]) delete w[key]; else w[key] = Date.now();
+  store.set('g.want.v1', w);
+  return w[key] || 0;
 }
 
 export function watchAction(id, action, value){
