@@ -73,11 +73,12 @@ function isoDurToMin(d){
   return Math.round((+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0) + (+m[4] || 0) / 60);
 }
 
-// dificuldade estimada (1–10) a partir da % de jogadores com a platina
+// dificuldade estimada (1–10) a partir da % de jogadores com a platina.
+// A % da Sony conta todo mundo que abriu o jogo, então é baixa: 0,1% ≈ 9, 1% ≈ 6, 10% ≈ 3.
 export function difficultyFromRate(rate){
   if (rate == null || isNaN(rate)) return null;
-  const r = Math.min(Math.max(rate, 0.1), 80);
-  const lo = Math.log10(0.3), hi = Math.log10(60);
+  const r = Math.min(Math.max(rate, 0.05), 80);
+  const lo = Math.log10(0.05), hi = Math.log10(40);
   const d = 10 - 9 * (Math.log10(r) - lo) / (hi - lo);
   return Math.round(Math.min(10, Math.max(1, d)) * 10) / 10;
 }
@@ -371,8 +372,34 @@ async function main(){
     });
   }
 
-  const out = [];
+  // junta entradas do mesmo jogo: versões PS4/PS5 com "concept" diferente,
+  // ou lista de troféus que a Sony não ligou ao registro de horas
+  const nameKey = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[™®©]/g, '').replace(/\b(ps4|ps5)\b/g, '').replace(/[^a-z0-9]+/g, '');
+  const merged = new Map();
   for (const g of games.values()) {
+    const k = nameKey(g.name);
+    const m = merged.get(k);
+    if (!m) { merged.set(k, g); continue; }
+    g.platforms.forEach(p => m.platforms.add(p));
+    g.titleIds.forEach(t => m.titleIds.add(t));
+    m.cover ||= g.cover; m.hero ||= g.hero; m.logo ||= g.logo;
+    m.playMinutes += g.playMinutes; m.playCount += g.playCount;
+    m.firstPlayed = minDate(m.firstPlayed, g.firstPlayed);
+    m.lastPlayed = maxDate(m.lastPlayed, g.lastPlayed);
+    m.owned ||= g.owned; m.plus ||= g.plus; m.preorder ||= g.preorder;
+    if (!m.genres?.length) m.genres = g.genres;
+    for (const s of g.trophySets) if (!m.trophySets.some(x => x.id === s.id)) m.trophySets.push(s);
+  }
+
+  const PLAT_LABEL = { PSVITA: 'Vita', PSPC: 'PC' };
+  const ROMAN = /^(i{1,3}|iv|v|vi{1,3}|ix|x|xi{1,3})$/i;
+  // "RESIDENT EVIL 3" -> "Resident Evil 3" (só quando o nome vem todo em maiúsculas)
+  const pretty = s => /[a-z].*[a-z]/.test(s) ? s : s.split(' ').map(w =>
+    ROMAN.test(w) || /\d/.test(w) ? w.toUpperCase() : w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+
+  const out = [];
+  for (const g of merged.values()) {
     // lista principal = a com mais progresso (empate: a de PS5)
     g.trophySets.sort((a, b) => b.progress - a.progress || (b.platform.includes('PS5') - a.platform.includes('PS5')));
     const main = g.trophySets[0] || null;
@@ -384,7 +411,9 @@ async function main(){
       : (g.playMinutes > 0 || anyProgress) ? 'playing'
       : g.trophySets.length ? 'started' : 'never';
     out.push({
-      key: g.key, name: g.name, platforms: [...g.platforms].filter(p => p !== '?'),
+      key: g.key, name: pretty(g.name),
+      platforms: [...new Set([...g.platforms].filter(p => p !== '?').map(p => PLAT_LABEL[p] || p))],
+      platCount: g.trophySets.filter(s => s.plat?.earned).length,
       cover: g.cover, hero: g.hero, logo: g.logo, genres: g.genres,
       owned: g.owned, plus: g.plus, preorder: g.preorder,
       playMinutes: g.playMinutes, playCount: g.playCount, firstPlayed: g.firstPlayed, lastPlayed: g.lastPlayed,

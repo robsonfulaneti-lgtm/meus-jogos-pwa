@@ -193,7 +193,7 @@ export function platinas(M){
     const r = g.trophies?.plat?.rate, rk = rarity(r);
     return `<a class="glass pcard reveal" href="#/jogo/${encodeURIComponent(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
       ${art(g.cover, { alt: g.name, w: 200 })}
-      <div><div class="pcard-name">${esc(g.name)}</div>
+      <div><div class="pcard-name">${esc(g.name)}${g.platCount > 1 ? ` <span class="tag" title="Platinado em ${g.platCount} versões" style="background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0;vertical-align:2px">×${g.platCount}</span>` : ''}</div>
       <div class="pcard-sub">${fmtDate(g.platEarnedAt)}${g.playMinutes ? ` · ${fmtH(g.playMinutes)}` : ''}${g.difficulty != null ? ` · ◆ ${num(g.difficulty)}` : ''}</div></div>
       <div class="rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(r)}<small>${rk?.label || ''}</small></div></a>`;
   };
@@ -207,7 +207,8 @@ export function platinas(M){
         <div class="big-trophy" id="bigTrophy">${trophySVG('platinum', { shine: true })}</div>
         <div>
           <div class="plat-count" data-count="${count}">0</div>
-          <div style="color:var(--muted);font-weight:600;margin-top:4px">platinas conquistadas${avgMin ? ` · média de ${fmtH(Math.round(avgMin))} por platina` : ''}</div>
+          <div style="color:var(--muted);font-weight:600;margin-top:4px">platinas conquistadas${count > list.length ? ` em ${list.length} jogos` : ''}${avgMin ? ` · média de ${fmtH(Math.round(avgMin))} por jogo` : ''}</div>
+          ${count > list.length ? `<div style="color:var(--dim);font-size:12.5px;margin-top:4px">${list.filter(g => g.platCount > 1).length} jogos platinados no PS4 e no PS5 (marcados com ×2)</div>` : ''}
           ${rarest ? `<div style="margin-top:12px;font-size:14px">A mais rara: <b>${esc(rarest.name)}</b> — <span class="r-${rarity(rarest.trophies.plat.rate).k}" style="font-weight:800">${fmtPct(rarest.trophies.plat.rate)}</span> dos jogadores</div>` : ''}
           ${withRate.length ? `<div class="rarity-bars">${Object.keys(buckets).map(k => `
             <div class="rb"><span>${labels[k]}</span><div class="rb-track"><i class="bg-${k}" data-w="${buckets[k] / max * 100}"></i></div><b>${buckets[k]}</b></div>`).join('')}</div>` : ''}
@@ -398,7 +399,7 @@ export function detail(M, g){
         <div class="glass ix">
           <div class="ix-lbl">Jogadores com a platina</div>
           <div class="ix-val ${rate != null ? 'r-' + rarity(rate).k : ''}">${fmtPct(rate)}</div>
-          <div class="ix-foot">${rate != null ? `${rarity(rate).label} · dado oficial da PSN` : t ? 'este jogo não tem platina' : 'aparece depois que você abrir o jogo'}</div>
+          <div class="ix-foot">${rate != null ? `${rarity(rate).label} · dado oficial da PSN, conta todo mundo que abriu o jogo` : t ? 'este jogo não tem platina' : 'aparece depois que você abrir o jogo'}</div>
         </div>
         <div class="glass ix" id="ixHours">
           <button class="ix-edit" data-edit="hours">editar</button>
