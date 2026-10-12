@@ -1,0 +1,11 @@
+{
+  "name": "games-psn-sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node sync-psn.mjs"
+  },
+  "dependencies": {
+    "psn-api": "^2.18.1"
+  }
+}

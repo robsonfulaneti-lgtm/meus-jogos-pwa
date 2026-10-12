@@ -7,3 +7,13 @@ free-ps5-icon-svg-download-png-2113998.webp
 # Local Netlify folder
 .netlify
 _site/
+
+# credenciais e cache da PSN: só neste computador
+sync/.env.local
+sync/.env
+sync/.cache/
+sync/node_modules/
+
+# dados pessoais gerados pelo sync (vão pro site via deploy, não pro git)
+site/data/psn.json
+site/data/t/

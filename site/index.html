@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Games</title>
+  <meta name="description" content="Sua conta PlayStation: biblioteca, platinas, rumo à platina e lançamentos." />
+  <meta name="theme-color" content="#05060b" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Games" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <!-- papel de parede dinâmico -->
+  <div class="wall" aria-hidden="true">
+    <div class="wall-img" id="wallA"></div>
+    <div class="wall-img" id="wallB"></div>
+    <div class="wall-aurora"></div>
+    <svg class="wall-waves" viewBox="0 0 1440 900" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="wv1" x1="0" x2="1"><stop offset="0" stop-color="#3d8bff" stop-opacity="0"/><stop offset=".5" stop-color="#7cc4ff" stop-opacity=".55"/><stop offset="1" stop-color="#3d8bff" stop-opacity="0"/></linearGradient>
+        <linearGradient id="wv2" x1="0" x2="1"><stop offset="0" stop-color="#b388ff" stop-opacity="0"/><stop offset=".5" stop-color="#d6c2ff" stop-opacity=".4"/><stop offset="1" stop-color="#b388ff" stop-opacity="0"/></linearGradient>
+      </defs>
+      <path class="wv a" d="M-100 620 C 240 520, 520 760, 820 620 S 1320 520, 1560 640" stroke="url(#wv1)"/>
+      <path class="wv b" d="M-100 680 C 280 600, 560 800, 860 680 S 1300 580, 1560 700" stroke="url(#wv2)"/>
+      <path class="wv c" d="M-100 560 C 300 460, 600 680, 900 560 S 1340 460, 1560 580" stroke="url(#wv1)"/>
+    </svg>
+    <div class="wall-vignette"></div>
+  </div>
+
+  <!-- navegação: trilho lateral no desktop, barra inferior no celular -->
+  <nav class="nav" id="nav" aria-label="Seções">
+    <a class="nav-brand" href="#/inicio" aria-label="Início">
+      <svg viewBox="0 0 32 32" width="28" height="28"><defs><linearGradient id="nb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#3d5bff"/></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="9" fill="url(#nb)"/><path d="M9 18.5h4m-2-2v4" stroke="#05060b" stroke-width="2.2" stroke-linecap="round"/><circle cx="20.5" cy="16.5" r="1.6" fill="#05060b"/><circle cx="23.5" cy="19.5" r="1.6" fill="#05060b"/></svg>
+    </a>
+    <a class="nav-link" data-route="inicio" href="#/inicio">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Início</span>
+    </a>
+    <a class="nav-link" data-route="biblioteca" href="#/biblioteca">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg><span>Biblioteca</span>
+    </a>
+    <a class="nav-link" data-route="platinas" href="#/platinas">
+      <svg viewBox="0 0 24 24"><path d="M7 3h10v5a5 5 0 0 1-10 0zM7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 21h7l-.8-4H9.3z"/></svg><span>Platinas</span>
+    </a>
+    <a class="nav-link" data-route="lancamentos" href="#/lancamentos">
+      <svg viewBox="0 0 24 24"><path d="M12 2.5c3.5 2.6 5.5 6.3 5.5 10.2V16l-2.4 2.4H8.9L6.5 16v-3.3C6.5 8.8 8.5 5.1 12 2.5z"/><circle cx="12" cy="10" r="2"/><path d="M9.5 18.5 9 21.5l3-1.3 3 1.3-.5-3"/></svg><span>Lançamentos</span>
+    </a>
+    <a class="nav-link" data-route="perfil" href="#/perfil">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4 4.1-6 8-6s7.1 2 8 6"/></svg><span>Perfil</span>
+    </a>
+  </nav>
+
+  <main class="view" id="view" tabindex="-1"></main>
+
+  <!-- detalhe do jogo -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <article class="sheet-panel" id="sheetPanel" role="dialog" aria-modal="true" aria-label="Detalhes do jogo"></article>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
