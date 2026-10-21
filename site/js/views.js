@@ -66,7 +66,7 @@ export function home(M){
   const e = p?.earned;
   const totalTro = e ? e.bronze + e.silver + e.gold + e.platinum : 0;
   const platCount = e?.platinum ?? plats(M).length;
-  const never = queue(M).length;
+  const zerados = M.games.filter(g => g.zerado).length;
   const folders = buildFolders(M);
 
   const hello = `<header class="hello reveal">${avatar(p)}<div>
@@ -77,8 +77,9 @@ export function home(M){
       <span>${M.generatedAt ? `sincronizado ${relTime(M.generatedAt)}` : 'PSN ainda não conectada'}</span>
     </div></div></header>`;
 
-  const stat = (ico, val, lbl, glow) => `<div class="glass stat reveal" style="--glow:${glow}">
-    <div class="stat-ico">${ico}</div><div class="stat-num" data-count="${val}">0</div><div class="stat-lbl">${lbl}</div></div>`;
+  // cada bloco é um atalho pra tela correspondente
+  const stat = (ico, val, lbl, glow, href) => `<a class="glass stat reveal" href="${href}" style="--glow:${glow}">
+    <div class="stat-ico">${ico}</div><div class="stat-num" data-count="${val}">0</div><div class="stat-lbl">${lbl} <span class="stat-go">›</span></div></a>`;
 
   return {
     wall: feat?.hero || feat?.cover,
@@ -87,10 +88,10 @@ export function home(M){
       ${M.connected ? '' : connectCard()}
       ${feat ? heroCard(feat) : ''}
       <div class="stats">
-        ${stat(trophySVG('platinum', { shine: true }), platCount, 'Platinas', 'rgba(200,220,255,.3)')}
-        ${stat(trophySVG('gold'), totalTro, 'Troféus', 'rgba(242,193,78,.28)')}
-        ${stat(`<span style="color:var(--accent-2);display:block;width:40px;height:40px">${ICON.clock}</span>`, Math.round(totalMinutes(M) / 60), 'Horas jogadas', 'rgba(0,209,255,.25)')}
-        ${stat(`<span style="color:var(--warn);display:block;width:40px;height:40px">${ICON.book}</span>`, never, 'Nunca jogados', 'rgba(255,181,71,.28)')}
+        ${stat(trophySVG('platinum', { shine: true }), platCount, 'Platinas', 'rgba(200,220,255,.3)', '#/platinas')}
+        ${stat(trophySVG('gold'), totalTro, 'Troféus', 'rgba(242,193,78,.28)', '#/perfil')}
+        ${stat(`<span style="color:var(--accent-2);display:block;width:40px;height:40px">${ICON.clock}</span>`, Math.round(totalMinutes(M) / 60), 'Horas jogadas', 'rgba(0,209,255,.25)', '#/anos')}
+        ${stat(`<span class="stat-check">✓</span>`, zerados, 'Zerados', 'rgba(61,220,151,.3)', '#/biblioteca?f=zerados')}
       </div>
       ${retroTeaser(M)}
       ${rail('Jogados recentemente', pl, '#/biblioteca?f=playing')}
