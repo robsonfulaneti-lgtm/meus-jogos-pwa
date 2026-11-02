@@ -1,8 +1,9 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
 import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
-import { saveOverride, watchAction, loadTrophies, zerarEstimate } from './data.js';
+import { saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs } from './data.js';
 import { sparkles, animate, setWall } from './fx.js';
 import { buildFolders } from './folders.js';
+import { isNative, appSync } from './native.js';
 
 const num = n => String(n).replace('.', ',');
 const by = {
@@ -75,6 +76,7 @@ export function home(M){
       ${p ? `<span class="lvl"><i>★</i>Nível ${p.level}</span>` : ''}
       ${p?.isPlus ? '<span class="plus-badge">PLUS</span>' : ''}
       <span>${M.generatedAt ? `sincronizado ${relTime(M.generatedAt)}` : 'PSN ainda não conectada'}</span>
+      ${isNative ? '<button class="sync-btn" data-sync>⟳ Atualizar</button>' : ''}
     </div></div></header>`;
 
   // cada bloco é um atalho pra tela correspondente
@@ -494,11 +496,101 @@ export function releases(M, params, ctx){
   };
 }
 
+// ================= CONTA PSN (app) E BACKUP =================
+function accountPanels(){
+  const psn = isNative ? `
+    <section class="glass panel reveal acc" id="psnAcc">
+      <h3>🔗 Conta PSN neste celular</h3>
+      <div id="accStatus" class="acc-status">…</div>
+      <div id="accLogin" hidden>
+        <ol class="acc-steps">
+          <li><a class="mini-btn" href="https://www.playstation.com/pt-br/" target="_blank" rel="noopener">1 · Entrar na PlayStation ↗</a>
+            <span>abre no navegador; entre com sua conta</span></li>
+          <li><a class="mini-btn" href="https://ca.account.sony.com/api/v1/ssocookie" target="_blank" rel="noopener">2 · Abrir o código ↗</a>
+            <span>copie todo o texto que aparecer</span></li>
+          <li><span>3 · Volte aqui e cole:</span></li>
+        </ol>
+        <textarea id="accNpsso" rows="2" placeholder='{"npsso":"…"}' autocomplete="off" spellcheck="false"></textarea>
+        <div class="acc-row"><button class="btn" id="accGo">Conectar</button></div>
+      </div>
+      <div class="acc-row" id="accActions" hidden>
+        <button class="btn" data-sync>⟳ Atualizar agora</button>
+        <button class="mini-btn bad" id="accOut">Sair</button>
+      </div>
+      <div class="ix-foot" style="margin-top:12px">Só leitura: o app só consulta a Sony, nunca altera nada na sua conta.
+        O código não fica guardado — só o acesso, dentro deste celular. Notas, tempo pra zerar e lançamentos continuam vindo do site.</div>
+    </section>` : '';
+  return `${psn}
+    <section class="glass panel reveal">
+      <h3>💾 Backup dos seus ajustes</h3>
+      <div class="ix-foot" style="margin-bottom:12px">Zerados, "Quero zerar", ocultos, partes, preços e histórico ficam salvos ${isNative ? 'neste app' : 'neste navegador'}.
+        Copie o backup pra levar ${isNative ? 'pra outro aparelho' : 'pro app instalado'} ou guardar.</div>
+      <div class="acc-row"><button class="mini-btn" id="bkCopy">📋 Copiar backup</button></div>
+      <textarea id="bkText" rows="2" placeholder="Cole aqui um backup pra importar" autocomplete="off" spellcheck="false"></textarea>
+      <div class="acc-row"><button class="mini-btn good" id="bkImport">Importar backup</button></div>
+    </section>`;
+}
+
+function mountAccount(root, ctx){
+  // backup (site e app)
+  const bk = root.querySelector('#bkText');
+  root.querySelector('#bkCopy')?.addEventListener('click', async () => {
+    const txt = exportPrefs();
+    try { await navigator.clipboard.writeText(txt); ctx.toast('📋 Backup copiado — cole no outro aparelho'); }
+    catch { bk.value = txt; bk.select(); ctx.toast('Selecione e copie o texto do campo'); }
+  });
+  root.querySelector('#bkImport')?.addEventListener('click', async () => {
+    if (!bk.value.trim()) return ctx.toast('Cole o backup no campo primeiro');
+    try {
+      if (!confirm('Importar o backup? Os ajustes deste aparelho serão trocados pelos do backup.')) return;
+      const n = importPrefs(bk.value);
+      bk.value = '';
+      ctx.toast(`✅ Backup importado (${n} itens)`);
+      await ctx.reload();
+    } catch (e) { ctx.toast(e.message || 'Backup inválido'); }
+  });
+
+  if (!isNative) return;
+  const $ = s => root.querySelector(s);
+  const fmt = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  const paint = async () => {
+    const s = await (await appSync()).status();
+    $('#accLogin').hidden = s.loggedIn;
+    $('#accActions').hidden = !s.loggedIn;
+    $('#accStatus').innerHTML = s.loggedIn
+      ? `<span class="acc-dot on"></span> Conectada · última atualização <b>${fmt(s.lastSync)}</b><br>
+         <small>O acesso vale até ${fmt(s.loginExpires)} e se renova a cada atualização — atualize pelo menos a cada ~10 dias.</small>`
+      : `<span class="acc-dot"></span> Não conectada${s.lastSync ? ` · última atualização ${fmt(s.lastSync)}` : ''} — siga os 3 passos:`;
+  };
+  paint();
+  ctx.onAccount = paint;
+  if (ctx.update?.apk) $('#psnAcc').insertAdjacentHTML('afterbegin',
+    `<a class="update-banner" href="${esc(ctx.update.apk)}" target="_blank" rel="noopener">📦 Nova versão ${esc(ctx.update.version)} do app — baixar e instalar ↗</a>`);
+  $('#accGo').addEventListener('click', async e => {
+    const b = e.currentTarget, raw = $('#accNpsso').value;
+    b.disabled = true; b.textContent = 'Conectando…';
+    try {
+      await (await appSync()).login(raw);
+      $('#accNpsso').value = '';
+      ctx.toast('✅ PSN conectada! Atualizando…');
+      await paint();
+      ctx.sync(true);
+    } catch (err) { ctx.toast(err.message || 'Não deu certo — tente um código novo'); }
+    finally { b.disabled = false; b.textContent = 'Conectar'; }
+  });
+  $('#accOut').addEventListener('click', async () => {
+    if (!confirm('Desconectar a PSN deste celular? Os dados continuam aqui; só para de atualizar.')) return;
+    await (await appSync()).logout();
+    ctx.toast('PSN desconectada');
+    paint();
+  });
+}
+
 // ================= PERFIL =================
 const TIERS = ['', 'Bronze I', 'Bronze II', 'Bronze III', 'Prata I', 'Prata II', 'Prata III', 'Ouro I', 'Ouro II', 'Ouro III', 'Platina'];
 export function profile(M){
   const p = M.profile;
-  if (!p) return { html: `<div class="page-head"><h1 class="page-title">Perfil</h1></div>${connectCard()}` };
+  if (!p) return { html: `<div class="page-head"><h1 class="page-title">Perfil</h1></div>${isNative ? '' : connectCard()}${accountPanels()}`, mount: mountAccount };
   const e = p.earned;
   const pl = M.all.filter(isPlayed);   // perfil = números da conta inteira (inclui ocultos)
   const top = [...pl].sort(by.hours).filter(g => g.playMinutes > 0).slice(0, 8);
@@ -552,7 +644,9 @@ export function profile(M){
           ${first ? kv('Jogando desde', fmtDate(first, { month: 'long', year: 'numeric' })) : ''}
           <div class="kv" style="margin-top:14px">${Object.entries(byPlat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="pill">${esc(k)} · ${v}</span>`).join('')}</div>
         </div>
-      </div>`,
+      </div>
+      ${accountPanels()}`,
+    mount: mountAccount,
   };
 }
 

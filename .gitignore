@@ -17,3 +17,15 @@ sync/node_modules/
 # dados pessoais gerados pelo sync (vão pro site via deploy, não pro git)
 site/data/psn.json
 site/data/t/
+
+# app Android: dependências, builds e o APK (a chave de assinatura fica fora do repositório)
+app/node_modules/
+app/www/
+app/dist/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/local.properties
+app/android/capacitor-cordova-android-plugins/build/
+site/app/
+site/data/seed.json

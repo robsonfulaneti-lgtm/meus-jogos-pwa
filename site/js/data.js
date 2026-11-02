@@ -7,11 +7,31 @@ const store = {
 };
 export { store };
 
+import { isNative, nativeJson } from './native.js';
+
+// no app Android, os dados da PSN ficam no aparelho (o próprio app sincroniza); no site, vêm do servidor
 async function getJson(url){
   try {
+    if (isNative && url !== 'data/extra.json') return await nativeJson(url);
     const r = await fetch(url, { cache: 'no-cache' });
     return r.ok ? await r.json() : null;
   } catch { return null; }
+}
+
+// ---------- backup dos ajustes feitos no aparelho ----------
+const PREF_KEYS = ['g.want.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1',
+  'buy.prices.v1', 'buy.pricehist.v1', 'buy.bought.v1', 'buy.deleted.v1', 'games.custom.buy.v1'];
+export function exportPrefs(){
+  const out = { app: 'games', v: 1, at: new Date().toISOString(), prefs: {} };
+  for (const k of PREF_KEYS) { const v = localStorage.getItem(k); if (v != null) out.prefs[k] = JSON.parse(v); }
+  return JSON.stringify(out);
+}
+export function importPrefs(text){
+  const j = JSON.parse(String(text).trim());
+  if (j?.app !== 'games' || !j.prefs) throw new Error('Isso não parece um backup do app Games.');
+  let n = 0;
+  for (const [k, v] of Object.entries(j.prefs)) if (PREF_KEYS.includes(k)) { localStorage.setItem(k, JSON.stringify(v)); n++; }
+  return n;
 }
 
 export const norm = s => (s || '').toLowerCase()

@@ -1,0 +1,12 @@
+{
+  "appId": "com.robsonfulaneti.games",
+  "appName": "Games",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#05060b"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "SystemBars": { "insetsHandling": "css", "style": "DARK" }
+  }
+}

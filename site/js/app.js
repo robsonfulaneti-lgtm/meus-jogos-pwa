@@ -2,6 +2,7 @@ import { loadModel, toggleWant, setZerado, toggleHidden, togglePart, applyFlags 
 import * as V from './views.js';
 import { animate, setWall, transition, confetti } from './fx.js';
 import { wantLabel } from './ui.js';
+import { isNative, appSync, updateInfo } from './native.js';
 
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
@@ -25,6 +26,9 @@ const ctx = {
   toast,
   rerender: () => main && drawMain(main, true),
   reopen: () => { const r = parse(); if (r.name === 'jogo') openDetail(r.arg, true); },
+  // relê os dados (depois de sincronizar ou importar um backup) e redesenha a tela atual
+  reload: async () => { M = await loadModel(); refreshAll(); },
+  sync: manual => runSync(manual),
 };
 
 function parse(){
@@ -203,10 +207,61 @@ function toast(msg){
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1900);
 }
 
+// ---------- app Android: atualização direto da PSN ----------
+const bar = document.createElement('div');
+bar.className = 'syncbar'; bar.hidden = true;
+bar.innerHTML = '<span class="syncbar-txt"></span><i class="syncbar-fill"></i>';
+document.body.appendChild(bar);
+const setBar = p => {
+  bar.hidden = false;
+  bar.querySelector('.syncbar-txt').textContent = `Atualizando · ${p.step}${p.total ? ` ${p.done}/${p.total}` : ''}`;
+  bar.querySelector('.syncbar-fill').style.width = p.total ? `${Math.round(p.done / p.total * 100)}%` : '100%';
+  bar.classList.toggle('indet', !p.total);
+};
+
+async function runSync(manual){
+  const s = await appSync();
+  if (!s) return;
+  if (s.isRunning()) { if (manual) toast('Já está atualizando…'); return; }
+  document.querySelectorAll('[data-sync]').forEach(b => b.disabled = true);
+  try {
+    setBar({ step: 'Conectando', done: 0, total: 0 });
+    await s.sync(setBar);
+    M = await loadModel();
+    refreshAll();
+    ctx.onAccount?.();
+    if (manual) toast('✅ Atualizado com a PSN');
+  } catch (e) {
+    if (e.code === 'NEED_LOGIN') {
+      toast('🔗 Conecte a PSN pra atualizar');
+      if (manual && !location.hash.startsWith('#/perfil')) location.hash = '#/perfil';
+    } else if (manual) toast('Não deu pra atualizar agora: ' + (e.message || 'sem conexão').slice(0, 80));
+  } finally {
+    bar.hidden = true;
+    document.querySelectorAll('[data-sync]').forEach(b => b.disabled = false);
+  }
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-sync]')) runSync(true); });
+
 (async () => {
+  if (isNative) document.documentElement.classList.add('native');
   M = await loadModel();
   window.addEventListener('hashchange', route);
   route();
+  if (!isNative) return;
+  // ao abrir: atualiza sozinho se passaram mais de 6 h (e avisa se tem versão nova do app)
+  const s = await appSync(), st = await s.status();
+  if (st.loggedIn && (!st.lastSync || Date.now() - st.lastSync > 6 * 3600e3)) runSync(false);
+  if (!st.loggedIn && !M.connected) location.hash = '#/perfil';
+  const up = await updateInfo();
+  if (up) toast(`📦 Versão ${up.version} do app disponível — veja no Perfil`), (ctx.update = up);
+  // voltando pro app depois de um tempo, atualiza também
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
+    const st2 = await s.status();
+    if (st2.loggedIn && Date.now() - (st2.lastSync || 0) > 6 * 3600e3) runSync(false);
+  });
 })();
 
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+// service worker só no site (o app já tem tudo dentro dele)
+if (!isNative && 'serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
