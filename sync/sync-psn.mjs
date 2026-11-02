@@ -576,11 +576,22 @@ async function main(){
   const nameKey = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/^(trofeus d[aoe]s?|trophies)\s+/, '')
     .replace(/[™®©]/g, '').replace(/\b(ps4|ps5)\b/g, '').replace(/[^a-z0-9]+/g, '');
+  // exceções (extra.json "separate"): jogo diferente com o mesmo nome — ex.: o RE2 clássico do PS Plus
+  // e o remake se chamam os dois "Resident Evil 2". Nunca junta por nome e pode ganhar nome próprio.
+  const extraEarly = await readJson(path.join(DATA, 'extra.json'), {});
+  const separate = extraEarly.separate || {};
   const merged = new Map();
+  const conceptMerges = [];
   for (const g of games.values()) {
+    if (separate[g.key]) {
+      if (typeof separate[g.key] === 'string') g.name = separate[g.key];
+      merged.set('sep:' + g.key, g);
+      continue;
+    }
     const k = nameKey(g.name);
     const m = merged.get(k);
     if (!m) { merged.set(k, g); continue; }
+    if (m.key.startsWith('c') && g.key.startsWith('c')) conceptMerges.push(`${m.name} [${m.key}] + ${g.name} [${g.key}]`);
     g.platforms.forEach(p => m.platforms.add(p));
     g.titleIds.forEach(t => m.titleIds.add(t));
     m.cover ||= g.cover; m.hero ||= g.hero; m.logo ||= g.logo;
@@ -591,6 +602,7 @@ async function main(){
     if (!m.genres?.length) m.genres = g.genres;
     for (const s of g.trophySets) if (!m.trophySets.some(x => x.id === s.id)) m.trophySets.push(s);
   }
+  if (conceptMerges.length) log(`juntei pelo nome ${conceptMerges.length} jogos que a Sony separa (confira se são o mesmo):\n    ` + conceptMerges.join('\n    '));
 
   const PLAT_LABEL = { PSVITA: 'Vita', PSPC: 'PC' };
   const ROMAN = /^(i{1,3}|iv|v|vi{1,3}|ix|x|xi{1,3})$/i;
@@ -653,9 +665,11 @@ async function main(){
   out.sort((a, b) => (b.lastPlayed || b.trophies?.updated || '').localeCompare(a.lastPlayed || a.trophies?.updated || ''));
 
   const extra = await readJson(path.join(DATA, 'extra.json'), { watchlist: [] });
-  const igdbOn = await enrichIgdb(env, out, extra.watchlist || []);
+  // jogos separados por nome repetido não são buscados no IGDB/RAWG (o nome traria o outro jogo)
+  const lookupGames = out.filter(g => !separate[g.key]);
+  const igdbOn = await enrichIgdb(env, lookupGames, extra.watchlist || []);
   const watchTtb = Object.fromEntries((extra.watchlist || []).filter(w => w.ttb).map(w => [w.id, w.ttb]));
-  const market = await enrichRawg(env, out, (extra.watchlist || []).map(({ ttb, ...w }) => w));
+  const market = await enrichRawg(env, lookupGames, (extra.watchlist || []).map(({ ttb, ...w }) => w));
 
   const totalMin = out.reduce((s, g) => s + g.playMinutes, 0);
   const data = {

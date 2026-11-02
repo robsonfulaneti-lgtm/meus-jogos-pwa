@@ -797,7 +797,7 @@ export function detail(M, g){
         </div>
         ${g.zerado && !g.zeradoAuto && !g.zeradoAt && g.zeradoSug ? `<div class="ix-foot" style="margin-top:8px">Marquei sozinho: ${g.storyTrophy
           ? `você ganhou o troféu de fim de história <b>“${esc(g.storyTrophy.name)}”</b>`
-          : `mais de 3 h jogadas — a data é a do seu último troféu`}. Não zerou? Toque em “tirar”.</div>` : ''}
+          : `mais de 3 h jogadas — a data é a do seu ${g.trophies ? 'último troféu' : 'último dia jogando (esse jogo não tem troféus)'}`}. Não zerou? Toque em “tirar”.</div>` : ''}
         ${g.parentKey ? `<a class="see-all" style="display:inline-block;margin-top:10px" href="#/jogo/${encodeURIComponent(g.parentKey)}">📦 Faz parte de ${esc(M.byKey.get(g.parentKey)?.name || 'uma coletânea')} →</a>` : ''}
       </div></div>
     <div class="d-body">

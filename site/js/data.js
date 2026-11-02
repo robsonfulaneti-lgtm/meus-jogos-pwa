@@ -157,7 +157,7 @@ function recompute(all, byKey){
     g.zeradoAuto = !!g.zeradoWhy;
     // coletânea não entra pela regra das horas: ela zera quando todos os jogos dela zerarem
     g.zeradoSug = !g.zeradoAuto && !g.collection && g.source === 'psn' && (!!g.storyTrophy || g.playMinutes >= SUG_MIN);
-    g.zeradoSugAt = Date.parse(g.storyTrophy?.at || g.lastTrophyAt || '') || 0;
+    g.zeradoSugAt = Date.parse(g.storyTrophy?.at || g.lastTrophyAt || (!g.trophies ? g.lastPlayed : '') || '') || 0;
     g.zeradoNo = !!no[g.key];
     g.zerado = g.zeradoAuto || !!g.zeradoAt || (g.zeradoSug && !g.zeradoNo);
     g.zeradoDate = g.zeradoAt || (g.zeradoSug && !g.zeradoNo ? g.zeradoSugAt : 0) || Date.parse(g.platEarnedAt || '') || 0;
@@ -217,7 +217,7 @@ export function setZerado(g, on){
   const zer = store.get('g.zerado.v1', {}), no = store.get('g.zerado.no.v1', {});
   if (on) {
     delete no[g.key];
-    if (!g.zeradoSug) zer[g.key] = Date.parse(g.storyTrophy?.at || g.lastTrophyAt || '') || Date.now();
+    if (!g.zeradoSug) zer[g.key] = Date.parse(g.storyTrophy?.at || g.lastTrophyAt || (!g.trophies ? g.lastPlayed : '') || '') || Date.now();
   } else {
     delete zer[g.key];
     if (g.zeradoSug) no[g.key] = Date.now();

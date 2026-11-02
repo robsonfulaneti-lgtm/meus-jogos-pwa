@@ -191,7 +191,8 @@
   "releaseOverride": {
     "_sobre": "Data do jogo original pra ordenar as pastas quando o RAWG não acha (coletâneas remaster)",
     "Tomb Raider I-III Remastered Starring Lara Croft": "1996-10-25",
-    "Tomb Raider IV-VI Remastered": "1999-11-19"
+    "Tomb Raider IV-VI Remastered": "1999-11-19",
+    "Resident Evil 2 (clássico)": "1998-01-21"
   },
   "collections": {
     "_sobre": "Coletâneas: as partes vêm dos grupos de troféus da PSN. names = rótulo melhor pra uma parte; games = quais partes são jogos (as outras são expansões/extras); include = outros jogos da conta que moram dentro desta coletânea. A coletânea conta como zerada quando todos os jogos dela forem zerados.",
@@ -250,5 +251,9 @@
         "default"
       ]
     }
+  },
+  "separate": {
+    "_sobre": "Jogos que têm o mesmo nome de outro mas são diferentes: ficam num card próprio, com este nome",
+    "c10005150": "Resident Evil 2 (clássico)"
   }
 }
