@@ -1,7 +1,7 @@
-const VER = 'games-v8';
+const VER = 'games-v9';
 const IMG = 'games-img-v2';
 const SHELL = [
-  './', 'index.html', 'manifest.webmanifest', 'css/app.css',
+  './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/fonts.css', 'fonts/inter-latin.woff2', 'fonts/sora-latin.woff2',
   'js/app.js', 'js/data.js', 'js/ui.js', 'js/fx.js', 'js/views.js', 'js/folders.js', 'js/native.js', 'js/app-sync.js', 'js/psn-core.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png',
 ];

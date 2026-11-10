@@ -51,17 +51,27 @@ export function diffInfo(d){
 export function thumb(url, w = 440){
   if (!url) return url;
   if (url.includes('image.api.playstation.com') && !url.includes('?')) return `${url}?w=${w}`;
+  // RAWG: a original tem uns 4 MB; o serviço deles só redimensiona pra 420, 640 ou 1280
+  if (url.includes('media.rawg.io/media/games/')) return url.replace('/media/games/', `/media/resize/${w <= 420 ? 420 : w <= 640 ? 640 : 1280}/-/games/`);
   return url;
 }
 
 // arte com fundo desfocado (troféus de PS4 são paisagem, capas de PS5 são quadradas)
 export function art(src, { alt = '', w = 440, cls = '', inner = '' } = {}){
-  if (!src) return `<div class="art ${cls}"><div class="blur" style="background:linear-gradient(135deg,#1b2650,#0b0f1e)"></div>${inner}</div>`;
+  if (!src) return `<div class="art ${cls}" style="background:linear-gradient(135deg,#1b2650,#0b0f1e)">${inner}</div>`;
   const u = esc(thumb(src, w));
-  return `<div class="art ${cls}"><div class="blur" style="background-image:url('${u}')"></div>` +
-    `<img src="${u}" alt="${esc(alt)}" loading="lazy" decoding="async" onload="window.__artFit&&__artFit(this)" onerror="this.remove()">${inner}</div>`;
+  return `<div class="art ${cls}"><img src="${u}" alt="${esc(alt)}" loading="lazy" decoding="async" onload="window.__artFit&&__artFit(this)" onerror="this.remove()">${inner}</div>`;
 }
-window.__artFit = img => { if (img.naturalWidth / img.naturalHeight > 1.25) img.classList.add('contain'); };
+// o fundo desfocado só existe atrás de arte paisagem (troféus de PS4), e só quando ela carrega:
+// antes cada capa baixava a imagem duas vezes, inclusive as que estavam fora da tela
+window.__artFit = img => {
+  if (img.naturalWidth / img.naturalHeight <= 1.25 || img.previousElementSibling?.classList.contains('blur')) return;
+  img.classList.add('contain');
+  const b = document.createElement('div');
+  b.className = 'blur';
+  b.style.backgroundImage = `url("${img.currentSrc || img.src}")`;
+  img.before(b);
+};
 
 // ---------- troféu desenhado ----------
 const METAL = {

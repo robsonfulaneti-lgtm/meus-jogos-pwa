@@ -3,19 +3,22 @@ import { thumb } from './ui.js';
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
+// celular: mesmos efeitos, só que sem o que redesenha a tela inteira a cada quadro (ver app.css)
+export const lite = matchMedia('(hover: none), (pointer: coarse)').matches;
 
 // ---------- papel de parede com troca suave ----------
 let wallFront = 'wallA', wallCurrent = '';
 export function setWall(url){
   if (!url || url === wallCurrent) return;
   wallCurrent = url;
-  const src = thumb(url, 1280);
+  const src = thumb(url, lite ? 320 : 1280);
   const img = new Image();
   img.onload = () => {
     if (wallCurrent !== url) return;
     const back = wallFront === 'wallA' ? 'wallB' : 'wallA';
     const el = document.getElementById(back);
-    el.style.backgroundImage = `url("${src}")`;
+    if (lite) el.replaceChildren(blurred(img));
+    else el.style.backgroundImage = `url("${src}")`;
     el.classList.add('on');
     document.getElementById(wallFront).classList.remove('on');
     wallFront = back;
@@ -23,14 +26,30 @@ export function setWall(url){
   img.src = src;
 }
 
+// no celular o desfoque é feito uma vez só, numa cópia pequena da imagem (esticada ela fica lisa);
+// filtro de desfoque na tela inteira custa a cada quadro enquanto rola
+function blurred(img){
+  const c = document.createElement('canvas'), w = 96;
+  const h = Math.max(1, Math.round(w * img.naturalHeight / img.naturalWidth)) || 54;
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  if ('filter' in x) x.filter = 'blur(3px) saturate(1.35) brightness(.42)';
+  x.drawImage(img, -6, -6, w + 12, h + 12);
+  if (!('filter' in x)) { x.fillStyle = 'rgba(5,6,11,.58)'; x.fillRect(0, 0, w, h); }
+  return c;
+}
+
 // ---------- animações quando o bloco aparece ----------
 const io = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
   for (const e of entries) {
     if (!e.isIntersecting) continue;
     io.unobserve(e.target);
+    watched.delete(e.target);
     play(e.target);
   }
 }, { rootMargin: '0px 0px -8% 0px' }) : null;
+// o que ainda espera aparecer; blocos de telas que já saíram são soltos (senão ficavam presos na memória)
+const watched = new Set();
 
 function play(el){
   el.classList.add('in');
@@ -43,9 +62,10 @@ function play(el){
 // instant = redesenho da mesma tela: tudo já aparece no estado final, sem animar de novo
 export function animate(root, instant = false){
   const targets = root.querySelectorAll('.reveal, .gcard, .ring, .pbar, [data-count], [data-w], [data-h]');
+  for (const t of watched) if (!t.isConnected) { io.unobserve(t); watched.delete(t); }
   for (const t of targets) {
     if (instant || !io || reduce) play(t);
-    else io.observe(t);
+    else { io.observe(t); watched.add(t); }
   }
   if (finePointer && !reduce) tilt(root);
 }
@@ -119,7 +139,8 @@ export function confetti(x = innerWidth / 2, y = innerHeight / 2){
 
 // ---------- troca de tela com transição ----------
 export function transition(fn){
-  if (!document.startViewTransition || reduce || document.hidden) return fn();
+  // no celular a troca de tela é na hora: a transição tira foto da tela inteira e engasga
+  if (!document.startViewTransition || reduce || lite || document.hidden) return fn();
   let done = false;
   const run = () => { if (!done) { done = true; fn(); } };
   try {

@@ -19,7 +19,7 @@ async function getJson(url){
 }
 
 // ---------- backup dos ajustes feitos no aparelho ----------
-const PREF_KEYS = ['g.want.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1',
+const PREF_KEYS = ['g.want.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1', 'g.tophide.v1', 'g.topshow.v1',
   'buy.prices.v1', 'buy.pricehist.v1', 'buy.bought.v1', 'buy.deleted.v1', 'games.custom.buy.v1'];
 export function exportPrefs(){
   const out = { app: 'games', v: 1, at: new Date().toISOString(), prefs: {} };
@@ -146,7 +146,22 @@ export async function loadModel(){
     top: psn?.market?.top || [],
     years: psn?.years || [],
     firstTrophy: psn?.firstTrophy || null,
+    topHidden: extra?.topHidden || {},
   };
+}
+
+// "Mais jogados" do Perfil: fora do ranking = os do extra.json, mais/menos o que você mudou no aparelho
+export function topHiddenSet(M){
+  const mine = store.get('g.tophide.v1', {});
+  const keys = new Set(Object.keys(M.topHidden).filter(k => !k.startsWith('_')));
+  for (const [k, on] of Object.entries(mine)) on ? keys.add(k) : keys.delete(k);
+  return keys;
+}
+export function setTopHidden(M, key, on){
+  const mine = store.get('g.tophide.v1', {});
+  const byDefault = key in M.topHidden;
+  if (on === byDefault) delete mine[key]; else mine[key] = on;
+  store.set('g.tophide.v1', mine);
 }
 
 export function saveOverride(key, patch){

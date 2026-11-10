@@ -1,7 +1,7 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
 import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
-import { saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs } from './data.js';
-import { sparkles, animate, setWall } from './fx.js';
+import { store, saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs, topHiddenSet, setTopHidden } from './data.js';
+import { sparkles, animate, setWall, lite } from './fx.js';
 import { buildFolders } from './folders.js';
 import { isNative, appSync } from './native.js';
 
@@ -593,7 +593,11 @@ export function profile(M){
   if (!p) return { html: `<div class="page-head"><h1 class="page-title">Perfil</h1></div>${isNative ? '' : connectCard()}${accountPanels()}`, mount: mountAccount };
   const e = p.earned;
   const pl = M.all.filter(isPlayed);   // perfil = números da conta inteira (inclui ocultos)
-  const top = [...pl].sort(by.hours).filter(g => g.playMinutes > 0).slice(0, 8);
+  // ranking: os ocultos (FC/FIFA etc.) ficam fora, a não ser que você peça pra incluir
+  const offTop = topHiddenSet(M), showOff = store.get('g.topshow.v1', false);
+  const played = [...pl].sort(by.hours).filter(g => g.playMinutes > 0);
+  const nOff = played.filter(g => offTop.has(g.key)).length;
+  const top = played.filter(g => showOff || !offTop.has(g.key)).slice(0, 20);
   const maxMin = top[0]?.playMinutes || 1;
   const withPlat = pl.filter(hasPlatDef);
   const platRate = withPlat.length ? Math.round(plats(M).length / withPlat.length * 100) : 0;
@@ -629,10 +633,15 @@ export function profile(M){
       </div>
       ${retroTeaser(M)}
       <div class="two section">
-        <div class="glass panel reveal"><h3>${ICON.clock.replace('<svg', '<svg width="18" height="18"')} Mais jogados</h3>
-          <div class="bars">${top.map(g => `<a class="bar-row" href="#/jogo/${encodeURIComponent(g.key)}">${art(g.cover, { w: 120 })}
+        <div class="glass panel reveal">
+          <div class="panel-head"><h3>${ICON.clock.replace('<svg', '<svg width="18" height="18"')} Mais jogados</h3>
+            ${nOff || showOff ? `<button class="top-toggle${showOff ? ' on' : ''}" data-topshow>${showOff ? 'Esconder ocultos' : `Incluir ocultos (${nOff})`}</button>` : ''}</div>
+          <div class="bars top-list${showOff ? ' editing' : ''}">${top.map(g => `<div class="bar-row${offTop.has(g.key) ? ' off' : ''}">
+            <a class="bar-hit" href="#/jogo/${encodeURIComponent(g.key)}" aria-label="${esc(g.name)}"></a>${art(g.cover, { w: 120 })}
             <div style="min-width:0"><div class="bar-name">${esc(g.name)}</div><div class="bar-track"><i data-w="${g.playMinutes / maxMin * 100}"></i></div></div>
-            <div class="bar-val">${fmtH(g.playMinutes)}</div></a>`).join('') || '<div class="empty">Sem tempo registrado</div>'}</div></div>
+            <div class="bar-val">${fmtH(g.playMinutes)}</div>
+            ${showOff ? `<button class="top-eye" data-tophide="${esc(g.key)}">${offTop.has(g.key) ? 'Mostrar' : 'Ocultar'}</button>` : ''}</div>`).join('') || '<div class="empty">Sem tempo registrado</div>'}</div>
+          <div class="top-note">${showOff ? 'Ocultar / Mostrar escolhe quem fica fora do ranking' : `Top ${top.length}${nOff ? ` · ${nOff} oculto${nOff > 1 ? 's' : ''}` : ''} · role a lista`}</div></div>
         <div class="glass panel reveal"><h3>📊 Seus números</h3>
           ${kv('Horas jogadas (PS4/PS5)', fmtH(totalMin))}
           ${kv('Jogos na conta', M.all.filter(g => g.source === 'psn').length)}
@@ -646,8 +655,30 @@ export function profile(M){
         </div>
       </div>
       ${accountPanels()}`,
-    mount: mountAccount,
+    mount: (root, ctx) => { mountAccount(root, ctx); mountTop(root, ctx, M); },
   };
+}
+
+function mountTop(root, ctx, M){
+  const list = root.querySelector('.top-list');
+  if (!list) return;
+  // redesenha o Perfil mantendo a lista rolada onde estava
+  const redraw = () => {
+    const y = list.scrollTop;
+    ctx.rerender();
+    const again = document.querySelector('.top-list');
+    if (again) again.scrollTop = y;
+  };
+  root.querySelector('[data-topshow]')?.addEventListener('click', () => {
+    store.set('g.topshow.v1', !store.get('g.topshow.v1', false));
+    redraw();
+  });
+  list.addEventListener('click', e => {
+    const b = e.target.closest('[data-tophide]');
+    if (!b) return;
+    setTopHidden(M, b.dataset.tophide, !topHiddenSet(M).has(b.dataset.tophide));
+    redraw();
+  });
 }
 
 // ================= PASTAS (SÉRIES) =================
@@ -957,7 +988,9 @@ export function detail(M, g){
 
 export function mountDetail(panel, M, g, ctx){
   const banner = panel.querySelector('.d-banner .bg');
-  panel.addEventListener('scroll', () => banner && banner.style.setProperty('--par', `${panel.scrollTop * .35}px`), { passive: true });
+  // um só ouvinte (o painel é o mesmo a cada jogo aberto; addEventListener ia empilhando um por abertura).
+  // No celular, sem o efeito de profundidade no banner: ele recalcula o estilo a cada pixel rolado
+  panel.onscroll = lite || !banner ? null : () => banner.style.setProperty('--par', `${panel.scrollTop * .35}px`);
 
   panel.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
     const kind = b.dataset.edit, box = b.parentElement;

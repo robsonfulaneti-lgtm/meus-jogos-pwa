@@ -744,3 +744,46 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
 .acc-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
 .update-banner{display:block;margin:-4px 0 14px;padding:10px 14px;border-radius:12px;font-weight:700;font-size:13.5px;
   background:linear-gradient(90deg,rgba(61,220,151,.22),rgba(0,209,255,.12));border:1px solid rgba(61,220,151,.45);color:#d8ffe9}
+
+/* ================= "Mais jogados" (top 20 com rolagem) ================= */
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.panel-head h3{margin:0}
+.top-toggle{font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:99px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.06);color:#c7cfea;white-space:nowrap}
+.top-toggle.on{border-color:rgba(0,209,255,.45);color:#d8f6ff;background:rgba(0,209,255,.12)}
+.top-list{max-height:min(480px,62vh);overflow-y:auto;overscroll-behavior:contain;padding-right:6px;scrollbar-width:thin}
+.top-list .bar-row{position:relative}
+.top-list.editing .bar-row{grid-template-columns:44px 1fr auto auto}
+.bar-hit{position:absolute;inset:0;z-index:1;border-radius:12px}
+.bar-row.off > :not(.top-eye){opacity:.45}
+.top-eye{position:relative;z-index:2;font-size:11px;font-weight:700;padding:5px 10px;border-radius:99px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.07);color:#dfe6ff;white-space:nowrap}
+.bar-row.off .top-eye{border-color:rgba(61,220,151,.5);color:#bff5dc}
+.top-note{color:var(--dim);font-size:11.5px;margin-top:12px}
+
+/* ================= celular: mesmo visual, bem mais leve =================
+   O desfoque "ao vivo" (backdrop-filter) dos painéis e o fundo animado obrigavam o celular a
+   redesenhar a tela inteira a cada quadro, e travava a rolagem. Aqui o fundo fica parado
+   (desfocado uma vez só, em fx.js), os painéis usam um fundo escuro translúcido no lugar do
+   vidro fosco e as barras aparecem sem animar a largura. */
+@media (hover: none), (pointer: coarse){
+  .wall-img{animation:none;filter:none;transform:scale(1.08)}
+  .wall-img canvas{display:block;width:100%;height:100%;object-fit:cover}
+  .wall-aurora{animation:none;mix-blend-mode:normal;opacity:.3}
+  .wv,.avatar::after,.eyebrow .pulse{animation:none}
+  .hero-shine,.goal::after{display:none}
+  .glass,.nav,.pill,.tag,.want-btn,.lib-tab,.sheet-backdrop,.d-close,.syncbar{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03)),rgba(9,11,20,.5);
+    box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 12px 28px rgba(0,0,0,.3)}
+  .nav{background:rgba(8,10,20,.95)}
+  .pill,.lib-tab{background:rgba(22,26,42,.78)}
+  .sheet-backdrop{background:rgba(3,4,9,.8)}
+  .d-close{background:rgba(5,6,11,.82)}
+  .art{box-shadow:0 8px 18px rgba(0,0,0,.4),0 0 0 1px var(--line)}
+  .gcard.is-plat .art{box-shadow:0 8px 18px rgba(0,0,0,.4),0 0 0 1px rgba(223,233,255,.35)}
+  .gcard.wanted .art{box-shadow:0 8px 18px rgba(0,0,0,.4),0 0 0 1.5px rgba(0,209,255,.55)}
+  .gcard.is-zerado:not(.is-plat) .art{box-shadow:0 8px 18px rgba(0,0,0,.4),0 0 0 1.5px rgba(61,220,151,.5)}
+  .folder-bg{filter:blur(14px) saturate(1.3) brightness(.5)}
+  .reveal{transform:translateY(10px);transition-duration:.4s}
+  .pbar i,.bar-track i,.rb-track i,.hype-track i,.level-track i,.ybar-track i{transition:none}
+}

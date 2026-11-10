@@ -255,5 +255,11 @@
   "separate": {
     "_sobre": "Jogos que têm o mesmo nome de outro mas são diferentes: ficam num card próprio, com este nome",
     "c10005150": "Resident Evil 2 (clássico)"
+  },
+  "topHidden": {
+    "_sobre": "Fora do ranking \"Mais jogados\" do Perfil (dá pra incluir de volta lá mesmo)",
+    "c10007176": "EA Sports FC 24",
+    "c10004336": "EA Sports FIFA 23",
+    "c10011898": "EA Sports FC 26"
   }
 }
