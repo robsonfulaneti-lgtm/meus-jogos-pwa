@@ -172,7 +172,7 @@ document.addEventListener('click', e => {
   }
 
   // "Quero zerar": atualiza no lugar, sem redesenhar a tela
-  g.wantAt = toggleWant(key);
+  g.wantAt = toggleWant(g);
   g.want = !!g.wantAt;
   document.querySelectorAll('[data-want]').forEach(el => {
     if (el.dataset.want !== key) return;

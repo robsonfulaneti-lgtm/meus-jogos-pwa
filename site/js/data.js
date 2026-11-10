@@ -7,19 +7,20 @@ const store = {
 };
 export { store };
 
-import { isNative, nativeJson } from './native.js';
+import { isNative, nativeJson, nativeExtra } from './native.js';
 
-// no app Android, os dados da PSN ficam no aparelho (o próprio app sincroniza); no site, vêm do servidor
+// no app Android, os dados da PSN ficam no aparelho (o próprio app sincroniza) e a lista curada vem do site;
+// no site, tudo vem do servidor
 async function getJson(url){
   try {
-    if (isNative && url !== 'data/extra.json') return await nativeJson(url);
+    if (isNative) return url === 'data/extra.json' ? await nativeExtra() : await nativeJson(url);
     const r = await fetch(url, { cache: 'no-cache' });
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
 // ---------- backup dos ajustes feitos no aparelho ----------
-const PREF_KEYS = ['g.want.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1', 'g.tophide.v1', 'g.topshow.v1',
+const PREF_KEYS = ['g.want.v1', 'g.want.no.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1', 'g.tophide.v1', 'g.topshow.v1',
   'buy.prices.v1', 'buy.pricehist.v1', 'buy.bought.v1', 'buy.deleted.v1', 'games.custom.buy.v1'];
 export function exportPrefs(){
   const out = { app: 'games', v: 1, at: new Date().toISOString(), prefs: {} };
@@ -58,14 +59,17 @@ export async function loadModel(){
   for (const b of extra?.backlog || []) {
     const n = norm(b.name);
     const hit = keyed.find(([k]) => sameGame(k, n))?.[1];
+    // "want": data = já entra no "Quero zerar" em qualquer aparelho (até você desmarcar)
+    const wantDefault = b.want ? Date.parse(b.want) || 1 : 0;
     if (hit) {
       hit.hoursEst ??= b.hours;
       if (b.note) hit.note = b.note;
       hit.cover ||= b.cover;
+      if (wantDefault) hit.wantDefault = wantDefault;
     } else {
       games.push({
         key: `l-${b.id}`, name: b.name, cover: b.cover, hero: b.cover, platforms: [], status: 'never',
-        playMinutes: 0, source: 'lista', hoursEst: b.hours, note: b.note || '', trophies: null, difficulty: null,
+        playMinutes: 0, source: 'lista', hoursEst: b.hours, note: b.note || '', trophies: null, difficulty: null, wantDefault,
       });
     }
   }
@@ -93,12 +97,12 @@ export async function loadModel(){
   }
   for (const g of games) if (g.parts && !g.collection) g.parts = g.parts.map(p => ({ ...p, kind: p.id === 'default' ? 'base' : 'dlc' }));
 
-  const want = store.get('g.want.v1', {});
+  const want = store.get('g.want.v1', {}), wantNo = store.get('g.want.no.v1', {});
   const zer = store.get('g.zerado.v1', {});
   const hid = store.get('g.hidden.v1', {});
   for (const g of games) {
-    g.want = !!want[g.key];
-    g.wantAt = want[g.key] || 0;
+    g.wantAt = want[g.key] || (g.wantDefault && !wantNo[g.key] ? g.wantDefault : 0);
+    g.want = !!g.wantAt;
     g.zeradoAt = zer[g.key] || 0;
     g.hiddenAt = hid[g.key] || 0;
     const o = ovr[g.key];
@@ -172,11 +176,14 @@ export function saveOverride(key, patch){
 }
 
 // "Quero zerar": guarda a hora em que foi marcado, pra manter a ordem da sua escolha
-export function toggleWant(key){
-  const w = store.get('g.want.v1', {});
-  if (w[key]) delete w[key]; else w[key] = Date.now();
+// desmarcar um que veio marcado pelo extra.json grava um "não" (senão ele voltaria sozinho)
+export function toggleWant(g){
+  const w = store.get('g.want.v1', {}), no = store.get('g.want.no.v1', {});
+  if (g.want) { delete w[g.key]; if (g.wantDefault) no[g.key] = Date.now(); }
+  else { w[g.key] = Date.now(); delete no[g.key]; }
   store.set('g.want.v1', w);
-  return w[key] || 0;
+  store.set('g.want.no.v1', no);
+  return w[g.key] || 0;
 }
 
 // zerado = marcado por você, ou platinado / 100% (esses contam sozinhos).

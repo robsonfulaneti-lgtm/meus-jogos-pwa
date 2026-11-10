@@ -51,7 +51,7 @@ export async function appSync(){
   const psn = await import('./vendor/psn-api.js');
   syncer = createAppSync({
     kv, psn, httpNoRedirect, fetchJson, remote: REMOTE,
-    getExtra: () => fetch('data/extra.json').then(r => r.json()),
+    getExtra: nativeExtra,
     log: (...a) => console.log('[sync]', ...a),
   });
   return syncer;
@@ -69,6 +69,14 @@ export async function nativeJson(path){
   const m = path.match(/^data\/t\/(.+)\.json$/);
   if (m) return (await appSync()).localList(decodeURIComponent(m[1]));
   return null;
+}
+
+// lista curada (extra.json): a do site, pra jogo que eu adicionar lá chegar sem reinstalar o app.
+// Espera a internet no máximo 2,5 s; senão usa a última que veio (ou a que vem dentro do app)
+export async function nativeExtra(){
+  const remote = fetchJson(REMOTE + 'data/extra.json').then(j => { kv.set('data:extra', j); return j; }).catch(() => null);
+  const quick = await Promise.race([remote, new Promise(r => setTimeout(r, 2500))]);
+  return quick || (await kv.get('data:extra', null)) || fetch('data/extra.json').then(r => r.json()).catch(() => null);
 }
 
 // versão do app instalada x a mais nova publicada no site

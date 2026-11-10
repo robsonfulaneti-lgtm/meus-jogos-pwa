@@ -2,6 +2,12 @@
   "_sobre": "Dados curados à mão, reaproveitados da versão antiga. O sync da PSN tem prioridade: se um jogo daqui aparecer na sua conta, vale o que vem da PSN.",
   "backlog": [
     {
+      "id": "gta-6",
+      "name": "Grand Theft Auto VI",
+      "cover": "covers/buy-gta6.jpg",
+      "want": "2026-11-10"
+    },
+    {
       "id": "alan-wake-2",
       "name": "Alan Wake 2",
       "cover": "covers/alan-wake-2.jpg",
