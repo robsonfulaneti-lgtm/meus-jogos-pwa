@@ -787,3 +787,19 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
   .reveal{transform:translateY(10px);transition-duration:.4s}
   .pbar i,.bar-track i,.rb-track i,.hype-track i,.level-track i,.ybar-track i{transition:none}
 }
+
+/* ================= GARAPAS ================= */
+.gar-link{display:flex;align-items:center;gap:14px;padding:16px 18px;margin-top:14px;
+  border-color:rgba(255,190,90,.35);background:linear-gradient(120deg,rgba(255,170,60,.16),rgba(255,90,140,.08) 60%,rgba(255,255,255,.03))}
+.gar-link b{display:block;font-family:var(--display);font-size:16px;letter-spacing:.6px;color:#ffd79a}
+.gar-link span{font-size:12.5px;color:#d9dcef}
+.gar-ico{font-size:30px;line-height:1}
+.gar-link .gar-go{margin-left:auto;font-size:26px;color:#ffd79a}
+.gar-meta{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.gar-meta .pill{font-size:11.5px;padding:4px 9px}
+.price.deal{color:var(--good)}
+.gar-off{font-size:11.5px;font-weight:800;padding:3px 7px;border-radius:7px;background:rgba(61,220,151,.18);color:#bff5dc}
+.gar-was{font-size:12.5px;color:var(--dim);text-decoration:line-through}
+.gar .price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gar-done{background:rgba(61,220,151,.22);color:#bff5dc;border-color:rgba(61,220,151,.45)}
+.gar.is-done{opacity:.7}

@@ -33,8 +33,8 @@ function blurred(img){
   const h = Math.max(1, Math.round(w * img.naturalHeight / img.naturalWidth)) || 54;
   c.width = w; c.height = h;
   const x = c.getContext('2d');
-  if ('filter' in x) x.filter = 'blur(3px) saturate(1.35) brightness(.42)';
-  x.drawImage(img, -6, -6, w + 12, h + 12);
+  if ('filter' in x) x.filter = 'blur(7px) saturate(1.35) brightness(.42)';
+  x.drawImage(img, -14, -14, w + 28, h + 28);
   if (!('filter' in x)) { x.fillStyle = 'rgba(5,6,11,.58)'; x.fillRect(0, 0, w, h); }
   return c;
 }

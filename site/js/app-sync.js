@@ -50,7 +50,7 @@ export function createAppSync({ kv, psn, httpNoRedirect, fetchJson, remote, getE
         if (t?.accessToken) { const v = tokensToStore(t); await kv.set(K.auth, v); return v; }
       } catch (e) { log('renovação falhou: ' + e.message); }
     }
-    throw Object.assign(new Error('O login da PSN venceu — cole um código npsso novo.'), { code: 'NEED_LOGIN' });
+    throw Object.assign(new Error(a ? 'O login da PSN venceu — cole um código npsso novo.' : 'Conecte sua conta PSN aqui no Perfil pra atualizar pelo celular.'), { code: 'NEED_LOGIN' });
   }
 
   // cache da sincronização dentro do aparelho; lista de troféus que ainda não tem aqui vem do site
@@ -102,6 +102,7 @@ export function createAppSync({ kv, psn, httpNoRedirect, fetchJson, remote, getE
       if (s?.ttb) g.ttb = s.ttb;
     }
     data.market = src.market || null;
+    data.garapas = src.garapas || null;
     data.watchTtb = src.watchTtb || {};
     data.sources = { ...data.sources, rawg: !!src.sources?.rawg, igdb: !!src.sources?.igdb };
   }

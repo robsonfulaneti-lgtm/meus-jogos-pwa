@@ -7,7 +7,7 @@ const store = {
 };
 export { store };
 
-import { isNative, nativeJson, nativeExtra } from './native.js';
+import { isNative, nativeJson, nativeExtra, cachedGarapas } from './native.js';
 
 // no app Android, os dados da PSN ficam no aparelho (o próprio app sincroniza) e a lista curada vem do site;
 // no site, tudo vem do servidor
@@ -137,6 +137,12 @@ export async function loadModel(){
   const byKey = new Map(games.map(g => [g.key, g]));
   recompute(games, byKey);
 
+  // garapas: o preço mais novo entre o do site (sync do PC) e o que o app buscou na loja
+  const garInfo = (extra?.garapas?.jogos || []).filter(x => x.t);
+  let garPrices = psn?.garapas || null;
+  const live = await cachedGarapas().catch(() => null);
+  if (live && (!garPrices || live.at > garPrices.at)) garPrices = live;
+
   return {
     connected: !!psn,
     generatedAt: psn?.generatedAt || null,
@@ -151,7 +157,29 @@ export async function loadModel(){
     years: psn?.years || [],
     firstTrophy: psn?.firstTrophy || null,
     topHidden: extra?.topHidden || {},
+    garapaInfo: garInfo,
+    garapas: buildGarapas(garInfo, garPrices, games),
+    garapasAt: garPrices?.at || null,
   };
+}
+
+// junta a lista (tempo, dificuldade) com o preço da loja e com o que você já tem na conta
+function buildGarapas(info, prices, games){
+  const byT = new Map((prices?.items || []).map(i => [i.t, i]));
+  const keyed = games.filter(g => g.source === 'psn').map(g => [norm(g.name), g]);
+  return info.map(x => {
+    const p = byT.get(x.t) || {};
+    const mine = keyed.find(([k]) => sameGame(k, norm(p.name || x.name)))?.[1];
+    return {
+      ...x, ...p, name: p.name || x.name, known: byT.has(x.t),
+      mine: mine ? { key: mine.key, plat: !!(mine.plats?.length || mine.trophies?.plat?.earned), progress: mine.trophies?.progress ?? null } : null,
+    };
+  });
+}
+export function applyGarapas(M, prices){
+  if (!prices) return;
+  M.garapas = buildGarapas(M.garapaInfo, prices, M.all);
+  M.garapasAt = prices.at;
 }
 
 // "Mais jogados" do Perfil: fora do ranking = os do extra.json, mais/menos o que você mudou no aparelho

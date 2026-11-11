@@ -267,5 +267,24 @@
     "c10007176": "EA Sports FC 24",
     "c10004336": "EA Sports FIFA 23",
     "c10011898": "EA Sports FC 26"
+  },
+  "garapas": {
+    "_sobre": "Platinas baratas e rápidas (até 10 h). t = código do jogo na PS Store; name = nome na loja (usado na busca); h = horas pra platinar [mín, máx]; diff = dificuldade 0-10; src = guias de onde veio a estimativa. O preço é buscado na loja.",
+    "jogos": [
+      { "t": "CUSA25115_00", "name": "My Name is Mayo 2", "h": [0.15, 0.25], "diff": 1, "src": "PlatGet" },
+      { "t": "CUSA12587_00", "name": "Super Destronaut DX", "h": [0.25, 0.5], "diff": 1, "src": "PlatGet" },
+      { "t": "CUSA17101_00", "name": "Mekabolt", "h": [0.4, 0.5], "diff": 1, "src": "KnoefGuides" },
+      { "t": "PPSA06207_00", "name": "What Remains of Edith Finch", "h": [2, 2.5], "diff": 2, "src": "PlatPrices, Prima Games" },
+      { "t": "CUSA29611_00", "name": "A Short Hike", "h": [3, 4], "diff": 2, "src": "PlatGet, PlatPrices" },
+      { "t": "CUSA04126_00", "name": "Hitman GO: Definitive Edition", "h": [4, 5], "diff": 2, "src": "PlatPursuit" },
+      { "t": "CUSA06460_00", "name": "Lara Croft GO", "h": [5, 6], "diff": 2, "src": "PlatPursuit" },
+      { "t": "CUSA16694_00", "name": "GRIS", "h": [4, 5], "diff": 2, "src": "PlatPursuit" },
+      { "t": "PPSA07117_00", "name": "Unpacking", "h": [4, 5], "diff": 2, "src": "PlatPursuit" },
+      { "t": "CUSA09747_00", "name": "MINIT", "h": [4, 6], "diff": 2, "src": "PlatPrices" },
+      { "t": "PPSA06084_00", "name": "Superliminal", "h": [4, 6], "diff": 6, "src": "PlatPrices, KnoefGuides" },
+      { "t": "PPSA27614_00", "name": "Sayonara Wild Hearts", "h": [4, 6], "diff": 5, "src": "PlatPrices" },
+      { "t": "CUSA23079_00", "name": "Untitled Goose Game", "h": [5, 7], "diff": 3.5, "src": "PowerPyx" },
+      { "t": "PPSA02100_00", "name": "Stray", "h": [6, 8], "diff": 3.5, "src": "PowerPyx, PlatGet" }
+    ]
   }
 }

@@ -1,9 +1,9 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
 import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
-import { store, saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs, topHiddenSet, setTopHidden } from './data.js';
+import { store, saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs, topHiddenSet, setTopHidden, applyGarapas } from './data.js';
 import { sparkles, animate, setWall, lite } from './fx.js';
 import { buildFolders } from './folders.js';
-import { isNative, appSync } from './native.js';
+import { isNative, appSync, liveGarapas } from './native.js';
 
 const num = n => String(n).replace('.', ',');
 const by = {
@@ -337,6 +337,7 @@ export function platinas(M){
     html: `
       <div class="page-head reveal"><div><h1 class="page-title">Estante de platinas</h1>
         <div class="page-sub">Cada platina com a % de jogadores no mundo que também conseguiram</div></div></div>
+      ${garapaLink(M)}
       <section class="glass trophy-hero reveal">
         <div class="big-trophy" id="bigTrophy">${trophySVG('platinum', { shine: true })}</div>
         <div>
@@ -584,6 +585,112 @@ function mountAccount(root, ctx){
     ctx.toast('PSN desconectada');
     paint();
   });
+}
+
+// ================= GARAPAS (platinas baratas e rápidas na PS Store) =================
+const GAR = { sort: 'time', max: 0, hidePlat: false };
+const GAR_SORTS = [['time', '⏱ Tempo'], ['price', '💰 Preço'], ['off', '🏷️ Desconto']];
+const GAR_MAX = [[0, 'Todos'], [20, 'Até R$ 20'], [40, 'Até R$ 40'], [60, 'Até R$ 60']];
+const garOn = M => M.garapas.filter(g => !g.missing);        // só o que está à venda na loja agora
+const offPct = g => +String(g.off || '').replace(/\D/g, '') || 0;
+// [0.25, 0.5] -> "15–30 min"; [4, 6] -> "4–6 h"
+function hrs([a, b]){
+  const f = v => v < 1 ? `${Math.round(v * 60)} min` : `${num(v)} h`;
+  if (a === b) return `~${f(a)}`;
+  return b < 1 ? `${Math.round(a * 60)}–${Math.round(b * 60)} min` : `${num(a)}–${f(b)}`;
+}
+
+function garapaLink(M){
+  const on = garOn(M);
+  if (!on.length) return '';
+  const priced = on.filter(g => g.price != null);
+  const low = priced.length ? Math.min(...priced.map(g => g.price)) : null;
+  const deals = on.filter(g => g.off).length;
+  return `<a class="glass gar-link reveal" href="#/garapas">
+    <span class="gar-ico">🍬</span>
+    <div><b>GARAPAS</b><span>${on.length} platinas rápidas (até 10 h) à venda na PS Store${low != null ? ` · a partir de ${brl(low)}` : ''}${deals ? ` · ${deals} em promoção` : ''}</span></div>
+    <span class="gar-go">›</span></a>`;
+}
+
+export function garapas(M, params, ctx){
+  const all = garOn(M), gone = M.garapas.length - all.length;
+  const shown = all.filter(g => (!GAR.max || (g.price != null && g.price <= GAR.max)) && !(GAR.hidePlat && g.mine?.plat));
+  const last = 9e15;
+  const sorters = {
+    time: (a, b) => a.h[1] - b.h[1] || a.h[0] - b.h[0] || (a.price ?? last) - (b.price ?? last),
+    price: (a, b) => (a.price ?? last) - (b.price ?? last) || a.h[1] - b.h[1],
+    off: (a, b) => offPct(b) - offPct(a) || (a.price ?? last) - (b.price ?? last),
+  };
+  shown.sort(sorters[GAR.sort] || sorters.time);
+  const deals = all.filter(g => g.off).length;
+  const totalH = shown.reduce((s, g) => s + (g.h[0] + g.h[1]) / 2, 0);
+  const totalR = shown.reduce((s, g) => s + (g.price || 0), 0);
+  const sources = [...new Set(M.garapas.flatMap(g => (g.src || '').split(/,\s*/)).filter(Boolean))].join(', ');
+
+  const mineTag = m => !m ? '' : m.plat ? '<span class="tag gar-done">✓ Platinado</span>'
+    : `<span class="tag">Na sua conta${m.progress ? ` · ${m.progress}%` : ''}</span>`;
+  const card = g => `<div class="glass wcard gar reveal${g.mine?.plat ? ' is-done' : ''}" data-wall="${esc(g.cover || '')}">
+    ${art(g.cover, { alt: g.name, w: 260 })}
+    <div>
+      <div class="wcard-name">${esc(g.name)}</div>
+      <div class="wcard-date">${(g.platforms || []).join(' · ') || '&nbsp;'} ${mineTag(g.mine)}</div>
+      <div class="gar-meta"><span class="pill">⏱ ${hrs(g.h)} pra platinar</span><span class="pill">◆ Dificuldade ${num(g.diff)}/10</span></div>
+      <div class="price-row">${g.price == null ? '<div class="price none">preço: buscando na loja…</div>'
+        : `<div class="price${g.off ? ' deal' : ''}">${g.price === 0 ? 'Grátis' : brl(g.price)}</div>${g.off ? `<span class="gar-off">${esc(g.off)}</span><span class="gar-was">${brl(g.base)}</span>` : ''}`}</div>
+      ${g.plusOnly ? '<div class="wcard-date">preço pra quem tem PS Plus</div>' : ''}
+      <div class="wactions">${g.product ? `<a class="mini-btn" href="https://store.playstation.com/pt-br/product/${encodeURIComponent(g.product)}" target="_blank" rel="noopener">Ver na PS Store ↗</a>` : ''}
+        ${g.mine ? `<a class="mini-btn" href="#/jogo/${encodeURIComponent(g.mine.key)}">Seus troféus</a>` : ''}</div>
+    </div></div>`;
+
+  const chip = (group, v, l, cur) => `<button class="chip ${String(v) === String(cur) ? 'on' : ''}" data-${group}="${v}">${l}</button>`;
+  return {
+    wall: shown[0]?.cover,
+    html: `
+      <a class="see-all" href="#/platinas">← Platinas</a>
+      <div class="page-head reveal"><div><h1 class="page-title">🍬 Garapas</h1>
+        <div class="page-sub">Platinas rápidas (até 10 h) de jogos baratos, à venda na PS Store agora</div></div></div>
+      <section class="glass invest reveal">
+        <div><div style="color:var(--muted);font-size:13px;font-weight:600">${shown.length} garapa${shown.length === 1 ? '' : 's'} nesse filtro</div>
+          <div class="invest-num">${brl(totalR)}</div>
+          <div style="color:var(--muted);font-size:12.5px">pra levar todas · ~${num(Math.round(totalH))} h de troféus</div></div>
+        <div style="color:var(--muted);font-size:12.5px;text-align:right">
+          ${deals} em promoção<br>
+          ${M.garapasAt ? `preços de ${relTime(M.garapasAt)}` : 'preços ainda não buscados'}
+          ${isNative ? '<br><button class="mini-btn" data-garup style="margin-top:8px">⟳ Atualizar preços</button>' : ''}</div>
+      </section>
+      <div class="rel-controls reveal">
+        <div><span class="ix-lbl">Ordenar</span><div class="chips">${GAR_SORTS.map(([v, l]) => chip('gsort', v, l, GAR.sort)).join('')}</div></div>
+        <div><span class="ix-lbl">Preço</span><div class="chips">${GAR_MAX.map(([v, l]) => chip('gmax', v, l, GAR.max)).join('')}
+          <button class="chip ${GAR.hidePlat ? 'on' : ''}" data-gplat>Esconder platinadas</button></div></div>
+      </div>
+      ${shown.length ? `<div class="wl">${shown.map(card).join('')}</div>` : '<div class="empty">Nenhuma garapa nesse filtro</div>'}
+      <div class="ix-foot" style="margin-top:12px">⏱ Tempo e dificuldade são estimativas de guias de troféus (${esc(sources)}) e variam com a sua habilidade.
+        ${gone ? `${gone} da lista não ${gone === 1 ? 'está' : 'estão'} à venda agora e ${gone === 1 ? 'ficou' : 'ficaram'} de fora. ` : ''}Quer outra garapa aqui? É só pedir.</div>`,
+    mount(root){
+      root.addEventListener('click', async e => {
+        const c = e.target.closest('[data-gsort],[data-gmax],[data-gplat]');
+        if (c) {
+          if (c.dataset.gsort) GAR.sort = c.dataset.gsort;
+          else if ('gmax' in c.dataset) GAR.max = +c.dataset.gmax;
+          else GAR.hidePlat = !GAR.hidePlat;
+          ctx.rerender();
+          return;
+        }
+        const up = e.target.closest('[data-garup]');
+        if (up) {
+          up.disabled = true; up.textContent = 'Buscando…';
+          const fresh = await liveGarapas(M.garapaInfo, true);
+          if (fresh) { applyGarapas(M, fresh); ctx.toast('🍬 Preços da PS Store atualizados'); }
+          else ctx.toast('Não deu pra falar com a PS Store agora');
+          ctx.rerender();
+        }
+      });
+      // no app: preço direto da loja (no máximo 1 vez por hora; o site usa o do último sync do PC)
+      if (isNative) liveGarapas(M.garapaInfo).then(fresh => {
+        if (fresh && fresh.at !== M.garapasAt && location.hash.startsWith('#/garapas')) { applyGarapas(M, fresh); ctx.rerender(); }
+      });
+    },
+  };
 }
 
 // ================= PERFIL =================

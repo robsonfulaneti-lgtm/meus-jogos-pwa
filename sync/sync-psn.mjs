@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as psn from 'psn-api';
 import { collectPsn, tokensToStore } from '../site/js/psn-core.js';
+import { storePrices } from '../site/js/store-core.js';
 const { exchangeNpssoForAccessCode, exchangeAccessCodeForAuthTokens, exchangeRefreshTokenForAuthTokens } = psn;
 
 const ROOT  = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +96,13 @@ async function main(){
   const igdbOn = await enrichIgdb(env, lookupGames, extra.watchlist || []);
   const watchTtb = Object.fromEntries((extra.watchlist || []).filter(w => w.ttb).map(w => [w.id, w.ttb]));
   const market = await enrichRawg(env, lookupGames, (extra.watchlist || []).map(({ ttb, ...w }) => w));
+
+  // GARAPAS: preço de agora na PS Store (o app do celular também busca sozinho)
+  const garapas = extra.garapas?.jogos || [];
+  if (garapas.length) {
+    data.garapas = await storePrices(garapas, (url, headers) => fetch(url, { headers }).then(r => r.json()), log);
+    log(`loja: preço de ${data.garapas.items.filter(i => i.price != null).length}/${garapas.length} garapas`);
+  }
 
   data.sources = { ...data.sources, rawg: !!market, igdb: igdbOn };
   data.watchTtb = watchTtb;

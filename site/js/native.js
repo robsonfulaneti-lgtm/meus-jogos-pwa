@@ -1,5 +1,6 @@
 // Liga o app Android (Capacitor) à sincronização. No site (navegador) nada daqui é usado.
 import { createAppSync } from './app-sync.js';
+import { storePrices } from './store-core.js';
 
 export const isNative = !!window.Capacitor?.isNativePlatform?.();
 export const REMOTE = 'https://meus-jogos-app.netlify.app/';
@@ -57,14 +58,20 @@ export async function appSync(){
   return syncer;
 }
 
-// dados que o app mostra: os do aparelho; na primeira abertura, os do site (e já guarda)
+// dados que o app mostra: o mais novo entre o do aparelho (sincronizado no celular) e o do site
+// (atualizado pelo PC). Antes ficava pra sempre com o do aparelho, mesmo sem a PSN conectada no app.
 export async function nativeJson(path){
   if (path === 'data/psn.json') {
+    const newer = (a, b) => a && (!b || (a.generatedAt || '') > (b.generatedAt || ''));
     const local = await kv.get('data:psn', null);
-    if (local) return local;
-    const remote = await fetchJson(REMOTE + path).catch(() => null);
-    if (remote) await kv.set('data:psn', remote);
-    return remote;
+    // o do site é guardado se for mais novo, mesmo que chegue depois (aí vale na próxima abertura)
+    const remote = fetchJson(REMOTE + path).then(async j => {
+      if (newer(j, await kv.get('data:psn', null))) await kv.set('data:psn', j);
+      return j;
+    }).catch(() => null);
+    // com dados no aparelho, espera o site no máximo 2,5 s (sem internet abre com o que tem)
+    const site = await Promise.race([remote, new Promise(r => setTimeout(r, local ? 2500 : 20000))]);
+    return newer(site, local) ? site : local || site || null;
   }
   const m = path.match(/^data\/t\/(.+)\.json$/);
   if (m) return (await appSync()).localList(decodeURIComponent(m[1]));
@@ -77,6 +84,22 @@ export async function nativeExtra(){
   const remote = fetchJson(REMOTE + 'data/extra.json').then(j => { kv.set('data:extra', j); return j; }).catch(() => null);
   const quick = await Promise.race([remote, new Promise(r => setTimeout(r, 2500))]);
   return quick || (await kv.get('data:extra', null)) || fetch('data/extra.json').then(r => r.json()).catch(() => null);
+}
+
+// GARAPAS no app: preço direto da loja (pela rede nativa; o site não consegue, a loja recusa pedido vindo dele).
+// Guarda o resultado e só busca de novo depois de 1 h (ou quando você pede)
+export const cachedGarapas = () => isNative ? kv.get('garapas', null) : Promise.resolve(null);
+export async function liveGarapas(list, force = false){
+  if (!isNative || !list.length) return null;
+  const cached = await kv.get('garapas', null);
+  if (!force && cached && Date.now() - Date.parse(cached.at) < 3600e3) return cached;
+  const getJson = async (url, headers) => {
+    const r = await Http().request({ url, method: 'GET', headers, connectTimeout: 15000, readTimeout: 15000 });
+    return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+  };
+  const fresh = await storePrices(list, getJson).catch(() => null);
+  if (fresh?.items.some(i => i.price != null)) { await kv.set('garapas', fresh); return fresh; }
+  return cached;
 }
 
 // versão do app instalada x a mais nova publicada no site

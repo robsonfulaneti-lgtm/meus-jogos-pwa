@@ -7,8 +7,8 @@ import { isNative, appSync, updateInfo } from './native.js';
 const view = document.getElementById('view');
 const sheet = document.getElementById('sheet');
 const panel = document.getElementById('sheetPanel');
-const ROUTES = { inicio: V.home, biblioteca: V.library, platinas: V.platinas, lancamentos: V.releases, perfil: V.profile, anos: V.retro, pasta: V.pasta };
-const NAV_OF = { anos: 'perfil', pasta: 'biblioteca' };   // telas sem aba própria acendem a aba "mãe"
+const ROUTES = { inicio: V.home, biblioteca: V.library, platinas: V.platinas, lancamentos: V.releases, perfil: V.profile, anos: V.retro, pasta: V.pasta, garapas: V.garapas };
+const NAV_OF = { anos: 'perfil', pasta: 'biblioteca', garapas: 'platinas' };   // telas sem aba própria acendem a aba "mãe"
 
 let M = null;
 let main = null;           // rota principal desenhada por baixo do detalhe
@@ -255,11 +255,13 @@ document.addEventListener('click', e => { if (e.target.closest('[data-sync]')) r
   if (!st.loggedIn && !M.connected) location.hash = '#/perfil';
   const up = await updateInfo();
   if (up) toast(`📦 Versão ${up.version} do app disponível — veja no Perfil`), (ctx.update = up);
-  // voltando pro app depois de um tempo, atualiza também
+  // voltando pro app depois de um tempo, atualiza também (sem a PSN conectada: pega o que o site tiver de mais novo)
+  let siteCheck = Date.now();
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     const st2 = await s.status();
     if (st2.loggedIn && Date.now() - (st2.lastSync || 0) > 6 * 3600e3) runSync(false);
+    else if (!st2.loggedIn && Date.now() - siteCheck > 10 * 60e3) { siteCheck = Date.now(); ctx.reload(); }
   });
 })();
 
