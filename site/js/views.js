@@ -500,7 +500,7 @@ export function releases(M, params, ctx){
 // ================= CONTA PSN (app) E BACKUP =================
 function accountPanels(){
   const psn = isNative ? `
-    <section class="glass panel reveal acc" id="psnAcc">
+    <section class="glass panel reveal acc acc-block" id="psnAcc">
       <h3>🔗 Conta PSN neste celular</h3>
       <div id="accStatus" class="acc-status">…</div>
       <div id="accLogin" hidden>
@@ -522,7 +522,7 @@ function accountPanels(){
         O código não fica guardado — só o acesso, dentro deste celular. Notas, tempo pra zerar e lançamentos continuam vindo do site.</div>
     </section>` : '';
   return `${psn}
-    <section class="glass panel reveal">
+    <section class="glass panel reveal acc-block">
       <h3>💾 Backup dos seus ajustes</h3>
       <div class="ix-foot" style="margin-bottom:12px">Zerados, "Quero zerar", ocultos, partes, preços e histórico ficam salvos ${isNative ? 'neste app' : 'neste navegador'}.
         Copie o backup pra levar ${isNative ? 'pra outro aparelho' : 'pro app instalado'} ou guardar.</div>
@@ -1144,7 +1144,6 @@ export function mountDetail(panel, M, g, ctx){
         road.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== tb.dataset.tab);
         return;
       }
-      const h = e.target.closest('.hidden-t'); if (h) h.classList.toggle('show');
       const m = e.target.closest('[data-more]');
       if (m) { m.previousElementSibling.querySelectorAll('.tro[hidden]').forEach(x => x.hidden = false); m.remove(); }
     });
@@ -1161,7 +1160,7 @@ function troRow(x, step, partName){
     <div class="tro-ic">${x.ic ? `<img src="${esc(x.ic)}" alt="" loading="lazy">` : ''}<span class="tro-type">${trophySVG(x.ty)}</span></div>
     <div style="min-width:0">
       <div class="tro-name">${step ? `<span class="step">${step}</span>` : ''}<span>${esc(x.n || 'Troféu oculto')}</span>${tag}</div>
-      <div class="tro-desc">${secret ? 'Troféu oculto — toque para revelar · ' : ''}${esc(x.d || '')}${x.e && x.at ? ` · conquistado em ${fmtDate(x.at)}` : ''}</div>
+      <div class="tro-desc">${secret ? '<b class="tro-secret">🔒 oculto</b> ' : ''}${esc(x.d || '')}${x.e && x.at ? ` · conquistado em ${fmtDate(x.at)}` : ''}</div>
     </div>
     <div class="tro-rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(x.r)}<small>${rk?.label || ''}</small></div>
   </div>`;

@@ -621,8 +621,7 @@ span.zer-big{cursor:default}
 .tro-desc{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
 .tro-rate{text-align:right;font-family:var(--display);font-weight:800;font-size:14px;min-width:58px}
 .tro-rate small{display:block;font-family:var(--body);font-size:10px;font-weight:600;letter-spacing:.3px}
-.tro.hidden-t .tro-name span,.tro.hidden-t .tro-desc{filter:blur(6px);cursor:pointer;user-select:none;transition:filter .3s}
-.tro.hidden-t.show .tro-name span,.tro.hidden-t.show .tro-desc{filter:none}
+.tro-secret{font-size:10.5px;font-weight:800;color:#c9b8ff;letter-spacing:.2px}
 .step{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:800;
   background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#05060b;flex:0 0 auto}
 .dlc{font-size:9.5px;font-weight:800;padding:2px 5px;border-radius:5px;background:rgba(179,136,255,.25);color:#d9c8ff}
@@ -789,7 +788,7 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
 }
 
 /* ================= GARAPAS ================= */
-.gar-link{display:flex;align-items:center;gap:14px;padding:16px 18px;margin-top:14px;
+.gar-link{display:flex;align-items:center;gap:14px;padding:16px 18px;margin:16px 0 20px;
   border-color:rgba(255,190,90,.35);background:linear-gradient(120deg,rgba(255,170,60,.16),rgba(255,90,140,.08) 60%,rgba(255,255,255,.03))}
 .gar-link b{display:block;font-family:var(--display);font-size:16px;letter-spacing:.6px;color:#ffd79a}
 .gar-link span{font-size:12.5px;color:#d9dcef}
@@ -803,3 +802,6 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
 .gar .price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .gar-done{background:rgba(61,220,151,.22);color:#bff5dc;border-color:rgba(61,220,151,.45)}
 .gar.is-done{opacity:.7}
+
+/* Perfil: blocos de conta e backup separados de "Seus números" e entre si */
+.acc-block{margin-top:18px}

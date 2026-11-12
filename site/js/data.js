@@ -125,7 +125,8 @@ export async function loadModel(){
     if (!hist[w.id] && price) hist[w.id] = [{ p: price, t: Date.now() }];
     return {
       ...w, price,
-      info: info[w.id] || null,
+      // "released" no extra.json = data confirmada, vale mais que a do RAWG
+      info: w.released ? { ...(info[w.id] || {}), released: w.released, tba: false } : info[w.id] || null,
       ttb: psn?.watchTtb?.[w.id] || null,
       hist: hist[w.id] || [],
       bought: bought.has(w.id),
