@@ -104,6 +104,8 @@ async function main(){
     log(`loja: preço de ${data.garapas.items.filter(i => i.price != null).length}/${garapas.length} garapas`);
   }
 
+  await englishNames(auth, data, extra);
+
   data.sources = { ...data.sources, rawg: !!market, igdb: igdbOn };
   data.watchTtb = watchTtb;
   data.market = market;
@@ -114,6 +116,31 @@ async function main(){
 }
 
 main().catch(e => { console.error('\n✖', e.message); process.exit(1); });
+
+// ---------- nomes em inglês dos troféus (pros links dos guias, que são em inglês) ----------
+// só dos jogos com guia no extra.json; uma vez por lista (fica em cache)
+async function englishNames(auth, data, extra){
+  const keys = Object.keys(extra.guias || {}).filter(k => !k.startsWith('_'));
+  if (!keys.length) return;
+  const f = path.join(CACHE, 'trophy-en.json');
+  const cache = await readJson(f, {});
+  for (const k of keys) {
+    const g = data.games.find(x => x.key === k);
+    for (const id of [g?.trophies?.id, ...(g?.otherSets || []).map(o => o.id)].filter(Boolean)) {
+      if (cache[id]) continue;
+      for (const svc of ['trophy', 'trophy2']) {
+        try {
+          const r = await psn.getTitleTrophies(auth, id, 'all', { npServiceName: svc, headerOverrides: { 'Accept-Language': 'en-US' } });
+          cache[id] = Object.fromEntries((r.trophies || []).map(t => [t.trophyId, t.trophyName]));
+          log(`nomes em inglês: ${g.name} (${Object.keys(cache[id]).length} troféus)`);
+          break;
+        } catch {}
+      }
+    }
+  }
+  await writeJson(f, cache);
+  await writeJson(path.join(DATA, 'trofeus-en.json'), cache);
+}
 
 // ---------- IGDB (opcional): tempo pra zerar ----------
 // hastily = só a história, normally = com alguns extras, completely = 100%  (a API devolve em segundos)

@@ -827,3 +827,9 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
 .ver-chip{display:inline-flex;align-items:center;gap:6px}
 .ver-t{display:inline-block;width:15px;height:17px;vertical-align:-3px}
 .ver-t svg{width:100%;height:100%}
+
+/* links "como fazer" / vídeo de cada troféu (jogos com guia) */
+.tro-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.tro-links a{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;border:1px solid var(--line-2);background:rgba(255,255,255,.05);color:#cfe2ff}
+.tro-links a:active{background:rgba(0,209,255,.15)}
+.guide-full{display:inline-flex;margin-top:12px}

@@ -937,7 +937,7 @@ export function retro(M){
             return `<a class="mini-plat" href="#/jogo/${encodeURIComponent(p.key)}">${art(p.g.cover, { w: 120 })}
               <div style="min-width:0"><div class="bar-name" style="margin:0">${esc(p.g.name)}</div>
               <div class="pcard-sub">${p.platform ? `<span class="tag">${esc(p.platform)}</span> ` : ''}${fmtDate(p.at)}</div></div>
-              <div class="rate ${r ? 'r-' + r.k : ''}" style="font-size:15px">${fmtPct(p.rate)}</div></a>`;
+              <div class="rate ${r ? 'r-' + r.k : ''}" style="font-size:15px">${p.manual ? '100%' : fmtPct(p.rate)}</div></a>`;
           }).join('') : '<div class="empty" style="padding:20px">Nenhuma platina nesse ano</div>'}
           ${y.rarest ? `<div style="margin-top:18px">
             <div class="ix-lbl">Troféu mais raro do ano</div>
@@ -1123,7 +1123,7 @@ export function detail(M, g){
             ${(g.plats?.length || 0) > 1
               ? g.plats.map(p => `<span>Platina ${esc(p.platform)} em <b>${fmtDate(p.at)}</b> (${fmtPct(p.rate)})</span>`).join('')
               : g.platEarnedAt ? `<span>Platinado em <b>${fmtDate(g.platEarnedAt)}</b></span>` : ''}
-            ${t.rarest ? `<span>Troféu mais raro: <b>${esc(t.rarest.name)}</b> (${fmtPct(t.rarest.rate)})</span>` : ''}
+            ${t.rarest ? `<span data-rarest="${esc(t.rarest.name)}">Troféu mais raro: <b>${esc(t.rarest.name)}</b> (${fmtPct(t.rarest.rate)})</span>` : ''}
           </div>
         </div></div>`
       : `<div class="glass note" style="margin-top:14px">${g.status === 'never'
@@ -1217,6 +1217,8 @@ export function mountDetail(panel, M, g, ctx){
     const road = panel.querySelector('#road');
     if (!road) return;
     list = l;
+    const rr = panel.querySelector('[data-rarest] b'), hit = rr && l?.find(x => x.en === rr.parentElement.dataset.rarest);
+    if (hit) rr.textContent = hit.n;
     paint();
     road.addEventListener('click', async e => {
       const vb = e.target.closest('[data-ver]');
@@ -1247,7 +1249,17 @@ export function mountDetail(panel, M, g, ctx){
   });
 }
 
-function troRow(x, step, partName){
+// links pra aprender um troféu (jogos com guia no extra.json): pesquisa pelo nome em inglês, que é como
+// os guias chamam o troféu — o primeiro resultado costuma ser a página dele no PSNProfiles/PowerPyx — e vídeo
+function troLinks(x, g){
+  const en = x.en || x.n;
+  if (!g.guide || !en) return '';
+  const game = g.name.replace(/[™®]/g, '');
+  return `<div class="tro-links"><a href="https://www.google.com/search?q=${encodeURIComponent(`${game} "${en}" trophy guide`)}" target="_blank" rel="noopener">📖 Como fazer</a>
+    <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${game} ${en} trophy`)}" target="_blank" rel="noopener">▶ Vídeo</a></div>`;
+}
+
+function troRow(x, step, partName, links = ''){
   const rk = rarity(x.r);
   const secret = x.h && !x.e;
   // etiqueta da parte: nome da DLC / do jogo da coletânea (o jogo base não precisa)
@@ -1257,6 +1269,7 @@ function troRow(x, step, partName){
     <div style="min-width:0">
       <div class="tro-name">${step ? `<span class="step">${step}</span>` : ''}<span>${esc(x.n || 'Troféu oculto')}</span>${tag}</div>
       <div class="tro-desc">${secret ? '<b class="tro-secret">🔒 oculto</b> ' : ''}${esc(x.d || '')}${x.e && x.at ? ` · conquistado em ${fmtDate(x.at)}` : ''}</div>
+      ${links}
     </div>
     <div class="tro-rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(x.r)}<small>${rk?.label || ''}</small></div>
   </div>`;
@@ -1277,7 +1290,7 @@ function roadmap(list, g, pid = '', tabPref = ''){
   const base = pid || g.collection || !groupParts.length ? pending : pending.filter(x => !x.g || x.g === 'default');
   const next = base.slice(0, 5);
   const rest = pending.filter(x => !next.includes(x));
-  const row = (x, step) => troRow(x, step, pid ? '' : nameOf(x.g));
+  const row = (x, step) => troRow(x, step, pid ? '' : nameOf(x.g), troLinks(x, g));
   const chips = groupParts.length > 1 ? `<div class="chips part-chips">
       <button class="chip ${!pid ? 'on' : ''}" data-pid="">Todas as partes</button>
       ${groupParts.map(p => `<button class="chip ${pid === p.id ? 'on' : ''}" data-pid="${esc(p.id)}">${esc(p.name)} <span>${p.earned}/${p.defined}</span></button>`).join('')}
@@ -1312,6 +1325,7 @@ function roadmap(list, g, pid = '', tabPref = ''){
   return `
     <h3>🧭 Rumo à platina</h3>
     ${goal}
+    ${g.guide ? `<a class="mini-btn guide-full" href="${esc(g.guide)}" target="_blank" rel="noopener">📘 Guia completo de troféus ↗</a>` : ''}
     ${chips}
     <div class="seg" role="tablist">
       <button role="tab" data-tab="pend" class="${tab === 'pend' ? 'on' : ''}" aria-selected="${tab === 'pend'}">Faltam <span>${pending.length}</span></button>

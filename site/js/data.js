@@ -7,13 +7,13 @@ const store = {
 };
 export { store };
 
-import { isNative, nativeJson, nativeExtra, cachedGarapas } from './native.js';
+import { isNative, nativeJson, nativeShared, cachedGarapas } from './native.js';
 
 // no app Android, os dados da PSN ficam no aparelho (o próprio app sincroniza) e a lista curada vem do site;
 // no site, tudo vem do servidor
 async function getJson(url){
   try {
-    if (isNative) return url === 'data/extra.json' ? await nativeExtra() : await nativeJson(url);
+    if (isNative) return ['data/extra.json', 'data/trofeus-pt.json', 'data/trofeus-en.json'].includes(url) ? await nativeShared(url) : await nativeJson(url);
     const r = await fetch(url, { cache: 'no-cache' });
     return r.ok ? await r.json() : null;
   } catch { return null; }
@@ -138,10 +138,19 @@ export async function loadModel(){
   store.set('buy.pricehist.v1', hist);
 
   const byKey = new Map(games.map(g => [g.key, g]));
+  // guia de troféus do jogo (extra.json → guias): cada troféu ganha os links "como fazer" e vídeo
+  for (const [k, url] of Object.entries(extra?.guias || {})) if (!k.startsWith('_') && byKey.get(k)) byKey.get(k).guide = url;
   // jogos sem platina na PSN feitos 100% que você quer contar como platinados (extra.json → platinaManual)
   for (const k of Object.keys(extra?.platinaManual || {})) {
     const g = byKey.get(k);
     if (g?.status === 'complete') { g.status = 'platinum'; g.platManual = true; g.platEarnedAt ||= g.lastTrophyAt || null; }
+    // e entra na retrospectiva do ano em que você fez 100%
+    const y = g?.platManual && (psn?.years || []).find(x => String(x.year) === (g.platEarnedAt || '').slice(0, 4));
+    if (y && !y.plats.some(p => p.key === k)) {
+      y.plats.push({ key: k, platform: g.platforms?.[0], at: g.platEarnedAt, rate: null, manual: true });
+      y.plats.sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+      y.trophies.platinum = (y.trophies.platinum || 0) + 1;
+    }
   }
   recompute(games, byKey);
 
@@ -165,6 +174,7 @@ export async function loadModel(){
     years: psn?.years || [],
     firstTrophy: psn?.firstTrophy || null,
     topHidden: extra?.topHidden || {},
+    guides: extra?.guias || {},
     garapaInfo: garInfo,
     garapas: buildGarapas(garInfo, garPrices, games),
     garapasAt: garPrices?.at || null,
@@ -337,6 +347,19 @@ export function watchAction(id, action, value){
   }
 }
 
+// troféus que a PSN só tem em inglês: a tradução fica em data/trofeus-pt.json ([nome, descrição] por troféu);
+// o original continua em x.en
+// Nos jogos com guia, o nome em inglês (data/trofeus-en.json) também vem, pros links "como fazer"
+let trPt = null, trEn = null;
 export async function loadTrophies(id){
-  return getJson(`data/t/${encodeURIComponent(id)}.json`);
+  trPt ||= getJson('data/trofeus-pt.json').then(j => j || {});
+  trEn ||= getJson('data/trofeus-en.json').then(j => j || {});
+  const [list, tr, en] = await Promise.all([getJson(`data/t/${encodeURIComponent(id)}.json`), trPt, trEn]);
+  const t = tr[id], e = en[id];
+  if (list) for (const x of list) {
+    const p = t?.[x.i];
+    if (p) { x.en = x.n; x.n = p[0] || x.n; x.d = p[1] ?? x.d; }
+    if (e?.[x.i]) x.en = e[x.i];
+  }
+  return list;
 }

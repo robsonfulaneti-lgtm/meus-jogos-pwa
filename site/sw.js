@@ -1,4 +1,4 @@
-const VER = 'games-v12';
+const VER = 'games-v13';
 const IMG = 'games-img-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'css/fonts.css', 'fonts/inter-latin.woff2', 'fonts/sora-latin.woff2',

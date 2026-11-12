@@ -269,6 +269,12 @@
     "c10004336": "EA Sports FIFA 23",
     "c10011898": "EA Sports FC 26"
   },
+  "guias": {
+    "_sobre": "Guia de troféus por jogo: o botão Guia completo abre ele, e cada troféu ganha os links Como fazer (pesquisa pelo nome em inglês) e Vídeo. O nome em inglês dos troféus é buscado pelo sync do PC.",
+    "c232115": "https://psnprofiles.com/guide/832-resident-evil-5-trophy-guide",
+    "c232116": "https://www.powerpyx.com/guides/resident_evil_6.html",
+    "pCUSA07104_00": "https://psnprofiles.com/guide/16990-resident-evil-code-veronica-x-trophy-guide"
+  },
   "platinaManual": {
     "_sobre": "Jogos sem platina na PSN que você fez 100% e quer contar como platinados (ganham o troféu e entram na estante)",
     "c232114": "Resident Evil 4 (2005)"

@@ -52,7 +52,7 @@ export async function appSync(){
   const psn = await import('./vendor/psn-api.js');
   syncer = createAppSync({
     kv, psn, httpNoRedirect, fetchJson, remote: REMOTE,
-    getExtra: nativeExtra,
+    getExtra: () => nativeShared('data/extra.json'),
     log: (...a) => console.log('[sync]', ...a),
   });
   return syncer;
@@ -78,12 +78,15 @@ export async function nativeJson(path){
   return null;
 }
 
-// lista curada (extra.json): a do site, pra jogo que eu adicionar lá chegar sem reinstalar o app.
-// Espera a internet no máximo 2,5 s; senão usa a última que veio (ou a que vem dentro do app)
-export async function nativeExtra(){
-  const remote = fetchJson(REMOTE + 'data/extra.json').then(j => { kv.set('data:extra', j); return j; }).catch(() => null);
+// arquivos que eu mantenho no site (lista curada extra.json, tradução dos troféus): a versão do site,
+// pra mudança chegar sem reinstalar o app. Espera a internet no máximo 2,5 s; senão usa a última
+// que veio (ou a que vem dentro do app)
+const SHARED_KEY = { 'data/extra.json': 'data:extra' };
+export async function nativeShared(path){
+  const key = SHARED_KEY[path] || 'shared:' + path;
+  const remote = fetchJson(REMOTE + path).then(j => { kv.set(key, j); return j; }).catch(() => null);
   const quick = await Promise.race([remote, new Promise(r => setTimeout(r, 2500))]);
-  return quick || (await kv.get('data:extra', null)) || fetch('data/extra.json').then(r => r.json()).catch(() => null);
+  return quick || (await kv.get(key, null)) || fetch(path).then(r => r.json()).catch(() => null);
 }
 
 // GARAPAS no app: preço direto da loja (pela rede nativa; o site não consegue, a loja recusa pedido vindo dele).
