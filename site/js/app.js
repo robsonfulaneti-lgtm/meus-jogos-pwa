@@ -110,6 +110,24 @@ sheet.addEventListener('click', e => {
   if (openedFromApp) history.back(); else location.hash = lastMainHash;
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) sheet.querySelector('[data-close]')?.click(); });
+
+// voltar do Android (gesto de arrastar da borda ou botão): fecha o jogo aberto, volta pra tela anterior;
+// sem tela anterior vai pro Início, e no Início deixa o app em segundo plano
+// A posição no histórico é contada aqui: o WebView às vezes não considera as telas como "anteriores"
+// (o Chrome pula entradas criadas sem toque) e o voltar saía do app
+let navIdx = 0;
+history.replaceState({ i: 0 }, '');
+addEventListener('hashchange', () => {
+  if (history.state?.i != null) navIdx = history.state.i;
+  else history.replaceState({ i: ++navIdx }, '');
+});
+const AppPlugin = window.Capacitor?.Plugins?.App;
+if (isNative && AppPlugin) AppPlugin.addListener('backButton', () => {
+  if (!sheet.hidden) { sheet.querySelector('[data-close]')?.click(); return; }
+  if (navIdx > 0) { history.back(); return; }
+  if (parse().name !== 'inicio') { history.replaceState({ i: 0 }, '', '#/inicio'); route(); return; }
+  AppPlugin.minimizeApp();
+});
 document.addEventListener('click', e => {
   if (e.target.closest('a[href^="#/jogo/"]')) openedFromApp = true;
 });
