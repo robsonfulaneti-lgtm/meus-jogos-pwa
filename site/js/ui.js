@@ -167,6 +167,7 @@ export function wantBtn(g){
     <svg class="i-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>`;
 }
 export const wantLabel = on => on ? '✓ Está em "Quero zerar"' : '＋ Quero zerar';
+export const platWantLabel = on => on ? '✓ Está em "Quero platinar"' : '🏆 Quero platinar';
 
 // ícones de linha usados em vários lugares
 export const ICON = {

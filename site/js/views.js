@@ -1,5 +1,5 @@
 // Telas do app. Cada uma devolve { html, wall, mount? }.
-import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel } from './ui.js';
+import { esc, fmtH, fmtDate, fmtPct, brl, relTime, rarity, diffInfo, art, trophySVG, ring, gameCard, ICON, thumb, wantLabel, platWantLabel } from './ui.js';
 import { store, saveOverride, watchAction, loadTrophies, zerarEstimate, exportPrefs, importPrefs, topHiddenSet, setTopHidden, applyGarapas } from './data.js';
 import { sparkles, animate, setWall, lite } from './fx.js';
 import { buildFolders } from './folders.js';
@@ -145,6 +145,7 @@ const curSort = () => LIB.sortBy[LIB.f] || 'recent';
 const TABS = [
   ['all',     'Todos',          () => true,                                                            'Tudo que está na sua conta, mais a sua lista antiga'],
   ['want',    '⭐ Quero zerar',  isWanted,                                                              'Os jogos que você escolheu terminar — toque no ＋ de qualquer jogo pra adicionar aqui'],
+  ['plat',    '🏆 Quero platinar', g => g.platWant,                                                    'Busque o nome na barra acima e toque em ＋ Adicionar — só aparecem os jogos que você escolher'],
   ['playing', 'Jogando',        g => (g.status === 'playing' || g.status === 'started') && !g.zerado,  'Já abriu e ainda não zerou'],
   ['zerados', '✅ Zerados',      g => g.zerado,                                                         'Platinados e 100% entram sozinhos. Também marquei os jogos com mais de 3 h (ou com troféu de fim de história). Não zerou algum? Toque no ✓ verde do card pra tirar.'],
   ['never',   'Nunca jogados',  isNever,                                                               'Estão na sua conta, mas você nunca abriu'],
@@ -175,7 +176,7 @@ export function library(M, params){
   if (LIB.f === 'hidden' && !M.hiddenGames.length) LIB.f = 'all';
   const plats = [...new Set(M.games.flatMap(g => g.platforms || []))].sort();
   const list = LIB.f === 'pastas' ? [] : libList(M);
-  const tab = ([v, l]) => `<button class="lib-tab ${v === 'want' ? 'want' : ''} ${v === LIB.f ? 'on' : ''}" data-f="${v}" role="tab" aria-selected="${v === LIB.f}">${l} <b>${tabCount(M, v)}</b></button>`;
+  const tab = ([v, l]) => `<button class="lib-tab ${v === 'want' || v === 'plat' ? v : ''} ${v === LIB.f ? 'on' : ''}" data-f="${v}" role="tab" aria-selected="${v === LIB.f}">${l} <b>${tabCount(M, v)}</b></button>`;
   const opt = (group, v, l, cur) => `<button class="chip ${v === cur ? 'on' : ''}" data-${group}="${esc(v)}">${esc(l)}</button>`;
   return {
     wall: list[0]?.hero || list[0]?.cover,
@@ -186,7 +187,7 @@ export function library(M, params){
       </div></div>
       <div class="lib-tabs" id="libF" role="tablist">${TABS.map(tab).join('')}</div>
       <div class="lib-bar">
-        <label class="search">${ICON.search}<input id="libQ" type="search" placeholder="Buscar jogo…" value="${esc(LIB.q)}" autocomplete="off"></label>
+        <label class="search">${ICON.search}<input id="libQ" type="search" placeholder="${LIB.f === 'plat' ? 'Buscar jogo pra adicionar…' : 'Buscar jogo…'}" value="${esc(LIB.q)}" autocomplete="off"></label>
         <button class="icon-btn" id="libOpts" aria-expanded="false" aria-controls="libPanel" title="Ordenar e filtrar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
           <span class="dot" ${LIB.p ? '' : 'hidden'}></span>
@@ -217,6 +218,7 @@ export function library(M, params){
       });
       // marcar/desmarcar "quero zerar" atualiza os contadores e a lista
       ctx.onWant = () => { counts(); if (LIB.f === 'want') draw(); };
+      ctx.onPlatWant = () => { counts(); if (LIB.f === 'plat') draw(); };
 
       const grid = l => `<div class="grid">${l.map(gameCard).join('')}</div>`;
       const editBar = root.querySelector('#editBar');
@@ -230,6 +232,13 @@ export function library(M, params){
           : '🙈 Toque nos jogos que você <b>não quer ver</b> — eles somem das listas (dá pra trazer de volta)';
         root.querySelector('#libHint').textContent = hiddenMode ? 'Jogos que você ocultou' : (TABS.find(t => t[0] === LIB.f)?.[3] || '');
 
+        if (LIB.f === 'plat') {
+          box.innerHTML = platWantView(M);
+          animate(box);
+          const first = M.games.find(g => g.platWant);
+          if (first) setWall(first.hero || first.cover);
+          return;
+        }
         if (LIB.f === 'pastas') {
           const q = LIB.q.trim().toLowerCase();
           const fs = buildFolders(M).filter(f => !q || f.name.toLowerCase().includes(q) || f.games.some(g => g.name.toLowerCase().includes(q)));
@@ -273,6 +282,7 @@ export function library(M, params){
       });
       const selectTab = v => {
         LIB.f = v;
+        root.querySelector('#libQ').placeholder = v === 'plat' ? 'Buscar jogo pra adicionar…' : 'Buscar jogo…';
         root.querySelectorAll('#libS .chip').forEach(c => c.classList.toggle('on', c.dataset.s === curSort()));
         root.querySelectorAll('#libF .lib-tab').forEach(c => { c.classList.toggle('on', c.dataset.f === v); c.setAttribute('aria-selected', c.dataset.f === v); });
         draw();
@@ -296,6 +306,40 @@ export function library(M, params){
       draw();
     },
   };
+}
+
+// "Quero platinar": a busca mostra jogos da sua conta com platina por fazer pra adicionar; a lista só tem os escolhidos
+function platWantView(M){
+  const q = LIB.q.trim().toLowerCase();
+  // pra platina só contam os troféus do jogo base (DLCs ficam de fora)
+  const left = g => {
+    const base = g.parts?.find(p => p.id === 'default');
+    if (base) return Math.max(0, base.defined - base.earned);
+    const sum = o => Object.values(o || {}).reduce((s, n) => s + n, 0);
+    return Math.max(0, sum(g.trophies?.defined) - sum(g.trophies?.earned));
+  };
+  const row = (g, chosen) => {
+    const pct = g.trophies?.progress ?? 0, done = g.status === 'platinum', rate = g.trophies?.plat?.rate;
+    const sub = done ? '🏆 Platinado!' : [`${pct}%`, `faltam ${left(g)} pra platina`,
+      g.difficulty != null ? `◆ ${num(g.difficulty)}` : '', rate != null ? `${fmtPct(rate)} platinaram` : ''].filter(Boolean).join(' · ');
+    return `<div class="glass pw-row${done ? ' is-done' : ''}">
+      <a class="pw-main" href="#/jogo/${encodeURIComponent(g.key)}">${art(g.cover, { alt: g.name, w: 160 })}
+        <div style="min-width:0"><div class="pcard-name">${esc(g.name)}</div><div class="pcard-sub">${sub}</div>
+          ${done ? '' : `<div class="pbar"><i data-w="${pct}"></i></div>`}</div></a>
+      <button class="mini-btn ${chosen ? '' : 'good'}" data-pw="${esc(g.key)}">${chosen ? 'Tirar' : '＋ Adicionar'}</button>
+    </div>`;
+  };
+  const chosen = M.games.filter(g => g.platWant)
+    .sort((a, b) => (a.status === 'platinum') - (b.status === 'platinum') || by.progress(a, b));
+  const found = q ? M.games.filter(g => !g.platWant && g.source === 'psn' && hasPlatDef(g) && g.status !== 'platinum' && g.name.toLowerCase().includes(q))
+    .sort(by.progress).slice(0, 15) : [];
+  const add = !q ? '' : found.length
+    ? `<section class="lib-group"><h3>Adicionar <span class="count">${found.length}</span></h3><div class="pw-list">${found.map(g => row(g, false)).join('')}</div></section>`
+    : `<div class="empty">Nenhum jogo da sua conta com platina por fazer tem "${esc(LIB.q.trim())}" no nome</div>`;
+  const list = chosen.length
+    ? `<section class="lib-group"><h3>Seus jogos pra platinar <span class="count">${chosen.length}</span></h3><div class="pw-list">${chosen.map(g => row(g, true)).join('')}</div></section>`
+    : q ? '' : '<div class="empty">🏆 Nada aqui ainda.<br>Digite o nome de um jogo na busca acima e toque em <b>＋ Adicionar</b>.</div>';
+  return add + list;
 }
 
 // ================= PLATINAS =================
@@ -1020,6 +1064,7 @@ export function detail(M, g){
           ${g.rating.metacritic ? `<span class="tag" style="background:${g.rating.metacritic >= 75 ? '#2e9d5b' : g.rating.metacritic >= 50 ? '#c9952b' : '#b33a3a'};border:0;color:#fff">Metacritic ${g.rating.metacritic}</span>` : ''}</div>` : ''}
         <div class="d-actions">
           ${canZerar(g) ? `<button class="btn ghost want-big ${g.want ? 'on' : ''}" data-want="${esc(g.key)}" aria-pressed="${g.want}">${wantLabel(g.want)}</button>` : ''}
+          ${g.source === 'psn' && hasPlatDef(g) && g.status !== 'platinum' ? `<button class="btn ghost pw-big ${g.platWant ? 'on' : ''}" data-pw="${esc(g.key)}" aria-pressed="${g.platWant}">${platWantLabel(g.platWant)}</button>` : ''}
           ${g.zeradoAuto
             ? `<span class="btn ghost zer-big on" title="Conta como zerado sozinho">✅ Zerado (${esc(g.zeradoWhy)})</span>`
             : `<button class="btn ghost zer-big ${g.zerado ? 'on' : ''}" data-zerar="${esc(g.key)}" aria-pressed="${g.zerado}">${g.zerado

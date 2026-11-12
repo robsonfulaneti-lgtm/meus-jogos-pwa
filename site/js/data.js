@@ -20,7 +20,7 @@ async function getJson(url){
 }
 
 // ---------- backup dos ajustes feitos no aparelho ----------
-const PREF_KEYS = ['g.want.v1', 'g.want.no.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1', 'g.tophide.v1', 'g.topshow.v1',
+const PREF_KEYS = ['g.want.v1', 'g.want.no.v1', 'g.platwant.v1', 'g.zerado.v1', 'g.zerado.no.v1', 'g.hidden.v1', 'g.parts.v1', 'g.ovr.v1', 'g.tophide.v1', 'g.topshow.v1',
   'buy.prices.v1', 'buy.pricehist.v1', 'buy.bought.v1', 'buy.deleted.v1', 'games.custom.buy.v1'];
 export function exportPrefs(){
   const out = { app: 'games', v: 1, at: new Date().toISOString(), prefs: {} };
@@ -97,12 +97,14 @@ export async function loadModel(){
   }
   for (const g of games) if (g.parts && !g.collection) g.parts = g.parts.map(p => ({ ...p, kind: p.id === 'default' ? 'base' : 'dlc' }));
 
-  const want = store.get('g.want.v1', {}), wantNo = store.get('g.want.no.v1', {});
+  const want = store.get('g.want.v1', {}), wantNo = store.get('g.want.no.v1', {}), platWant = store.get('g.platwant.v1', {});
   const zer = store.get('g.zerado.v1', {});
   const hid = store.get('g.hidden.v1', {});
   for (const g of games) {
     g.wantAt = want[g.key] || (g.wantDefault && !wantNo[g.key] ? g.wantDefault : 0);
     g.want = !!g.wantAt;
+    g.platWantAt = platWant[g.key] || 0;
+    g.platWant = !!g.platWantAt;
     g.zeradoAt = zer[g.key] || 0;
     g.hiddenAt = hid[g.key] || 0;
     const o = ovr[g.key];
@@ -205,6 +207,14 @@ export function saveOverride(key, patch){
 }
 
 // "Quero zerar": guarda a hora em que foi marcado, pra manter a ordem da sua escolha
+// "Quero platinar": só os jogos que você adicionou (guarda a hora em que entrou)
+export function togglePlatWant(key){
+  const w = store.get('g.platwant.v1', {});
+  if (w[key]) delete w[key]; else w[key] = Date.now();
+  store.set('g.platwant.v1', w);
+  return w[key] || 0;
+}
+
 // desmarcar um que veio marcado pelo extra.json grava um "não" (senão ele voltaria sozinho)
 export function toggleWant(g){
   const w = store.get('g.want.v1', {}), no = store.get('g.want.no.v1', {});

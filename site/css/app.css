@@ -805,3 +805,15 @@ a.stat:hover .stat-go{opacity:1;transform:translateX(3px)}
 
 /* Perfil: blocos de conta e backup separados de "Seus números" e entre si */
 .acc-block{margin-top:18px}
+
+/* ================= Quero platinar ================= */
+.lib-tab.plat.on{background:linear-gradient(135deg,#ffffff,#b9c9e6);color:#0a0f1f;border-color:transparent;box-shadow:0 10px 26px rgba(200,220,255,.3)}
+.pw-list{display:grid;gap:10px}
+@media (min-width:900px){.pw-list{grid-template-columns:1fr 1fr}}
+.pw-row{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px}
+.pw-main{display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;flex:1;min-width:0}
+.pw-main .art{width:62px;border-radius:14px}
+.pw-row .pbar{margin-top:8px}
+.pw-row.is-done{border-color:rgba(223,233,255,.45)}
+.pw-row.is-done .pcard-sub{color:#e6eeff;font-weight:700}
+.pw-big.on{border-color:rgba(223,233,255,.6);color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(185,201,230,.12))}

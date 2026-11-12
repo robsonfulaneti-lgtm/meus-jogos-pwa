@@ -1,7 +1,7 @@
-import { loadModel, toggleWant, setZerado, toggleHidden, togglePart, applyFlags } from './data.js';
+import { loadModel, togglePlatWant, toggleWant, setZerado, toggleHidden, togglePart, applyFlags } from './data.js';
 import * as V from './views.js';
 import { animate, setWall, transition, confetti } from './fx.js';
-import { wantLabel } from './ui.js';
+import { wantLabel, platWantLabel } from './ui.js';
 import { isNative, appSync, updateInfo } from './native.js';
 
 const view = document.getElementById('view');
@@ -49,6 +49,7 @@ function drawMain(r, force = false){
     view.classList.toggle('instant', force);
     if (!force) { view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); }
     ctx.onWant = null;
+    ctx.onPlatWant = null;
     out.mount?.(view, ctx);
     animate(view, force);
     window.scrollTo(0, y);
@@ -112,6 +113,26 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hid
 document.addEventListener('click', e => {
   if (e.target.closest('a[href^="#/jogo/"]')) openedFromApp = true;
 });
+
+// "Quero platinar": adiciona/tira (aba da Biblioteca e tela do jogo)
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pw]');
+  if (!b) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const g = M.byKey.get(b.dataset.pw);
+  if (!g) return;
+  g.platWantAt = togglePlatWant(g.key);
+  g.platWant = !!g.platWantAt;
+  document.querySelectorAll('.pw-big').forEach(el => {
+    if (el.dataset.pw !== g.key) return;
+    el.classList.toggle('on', g.platWant);
+    el.setAttribute('aria-pressed', g.platWant);
+    el.textContent = platWantLabel(g.platWant);
+  });
+  toast(g.platWant ? `🏆 ${g.name} em "Quero platinar"` : `${g.name} saiu de "Quero platinar"`);
+  ctx.onPlatWant?.();
+}, true);
 
 // Ações nos jogos. Fase de captura pra rodar antes do link do card abrir o jogo.
 document.addEventListener('click', e => {
