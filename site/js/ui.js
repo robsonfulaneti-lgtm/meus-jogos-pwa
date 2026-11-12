@@ -127,7 +127,11 @@ export function gameCard(g){
   if (canWant) tags.push(`<span class="tag wanttag">⭐ QUERO ZERAR</span>`);
   if (g.zerado && !isPlat) tags.push(`<span class="tag zerado">✅ ZERADO</span>`);
   if (g.plus) tags.push(`<span class="tag plus">PLUS</span>`);
-  const corner = isPlat
+  // platinado no PS4 e no PS5: um troféu de cada, lado a lado
+  const corner = isPlat && (g.plats?.length || 0) > 1
+    ? `<span class="plat2" title="Platinado no ${g.plats.map(p => esc(p.platform)).join(' e no ')}">${g.plats.map(p =>
+        `<span class="plat2-i"><span class="plat2-t">${trophySVG('platinum')}</span><small>${esc(p.platform)}</small></span>`).join('')}</span>`
+    : isPlat
     ? `<span style="width:30px;height:34px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))">${trophySVG('platinum')}</span>`
     : tro ? ring(pct, { size: 34, th: 4, label: false }) : '';
   const sub = [g.platforms?.slice(0, 2).join(' · ')];

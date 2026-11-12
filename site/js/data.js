@@ -138,6 +138,11 @@ export async function loadModel(){
   store.set('buy.pricehist.v1', hist);
 
   const byKey = new Map(games.map(g => [g.key, g]));
+  // jogos sem platina na PSN feitos 100% que você quer contar como platinados (extra.json → platinaManual)
+  for (const k of Object.keys(extra?.platinaManual || {})) {
+    const g = byKey.get(k);
+    if (g?.status === 'complete') { g.status = 'platinum'; g.platManual = true; g.platEarnedAt ||= g.lastTrophyAt || null; }
+  }
   recompute(games, byKey);
 
   // garapas: o preço mais novo entre o do site (sync do PC) e o que o app buscou na loja
@@ -234,7 +239,7 @@ function recompute(all, byKey){
   const ps = store.get('g.parts.v1', {});
   const no = store.get('g.zerado.no.v1', {});
   for (const g of all) {
-    g.zeradoWhy = g.status === 'platinum' ? 'platina' : g.status === 'complete' ? '100%' : null;
+    g.zeradoWhy = g.status === 'platinum' ? (g.platManual ? '100%' : 'platina') : g.status === 'complete' ? '100%' : null;
     g.zeradoAuto = !!g.zeradoWhy;
     // coletânea não entra pela regra das horas: ela zera quando todos os jogos dela zerarem
     g.zeradoSug = !g.zeradoAuto && !g.collection && g.source === 'psn' && (!!g.storyTrophy || g.playMinutes >= SUG_MIN);

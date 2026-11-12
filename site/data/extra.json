@@ -269,6 +269,10 @@
     "c10004336": "EA Sports FIFA 23",
     "c10011898": "EA Sports FC 26"
   },
+  "platinaManual": {
+    "_sobre": "Jogos sem platina na PSN que você fez 100% e quer contar como platinados (ganham o troféu e entram na estante)",
+    "c232114": "Resident Evil 4 (2005)"
+  },
   "garapas": {
     "_sobre": "Platinas baratas e rápidas (até 10 h). t = código do jogo na PS Store; name = nome na loja (usado na busca); h = horas pra platinar [mín, máx]; diff = dificuldade 0-10; src = guias de onde veio a estimativa. O preço é buscado na loja.",
     "jogos": [

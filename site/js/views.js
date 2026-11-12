@@ -345,7 +345,7 @@ function platWantView(M){
 // ================= PLATINAS =================
 // uma entrada por platina conquistada (PS4 e PS5 do mesmo jogo ficam separadas, cada uma no seu ano)
 export const platEntries = M => plats(M).flatMap(g =>
-  (g.plats?.length ? g.plats : [{ at: g.platEarnedAt, rate: g.trophies?.plat?.rate, platform: g.platforms?.[0] }])
+  (g.plats?.length ? g.plats : [{ at: g.platEarnedAt, rate: g.trophies?.plat?.rate, platform: g.platforms?.[0], manual: g.platManual }])
     .map(p => ({ g, ...p }))
 ).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
 
@@ -362,18 +362,19 @@ export function platinas(M){
   const avgMin = timed.length ? timed.reduce((s, g) => s + g.playMinutes, 0) / timed.length : 0;
   const count = M.profile?.earned?.platinum ?? list.length;
   const doubles = plats(M).filter(g => (g.plats?.length || 0) > 1).length;
+  const manual = plats(M).filter(g => g.platManual);
 
   const years = {};
   for (const e of list) (years[(e.at || '').slice(0, 4) || '—'] ||= []).push(e);
 
-  const pcard = ({ g, at, rate, platform }) => {
+  const pcard = ({ g, at, rate, platform, manual }) => {
     const rk = rarity(rate);
     const multi = (g.plats?.length || 0) > 1;
     return `<a class="glass pcard reveal" href="#/jogo/${encodeURIComponent(g.key)}" data-wall="${esc(g.hero || g.cover || '')}">
       ${art(g.cover, { alt: g.name, w: 200 })}
       <div><div class="pcard-name">${esc(g.name)}</div>
       <div class="pcard-sub">${platform ? `<span class="tag" style="${multi ? 'background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0' : ''}">${esc(platform)}</span> ` : ''}${fmtDate(at)}${!multi && g.playMinutes ? ` · ${fmtH(g.playMinutes)}` : ''}${g.difficulty != null ? ` · ◆ ${num(g.difficulty)}` : ''}</div></div>
-      <div class="rate ${rk ? 'r-' + rk.k : ''}">${fmtPct(rate)}<small>${rk?.label || ''}</small></div></a>`;
+      <div class="rate ${rk ? 'r-' + rk.k : ''}">${manual ? '100%<small>sem platina na PSN</small>' : `${fmtPct(rate)}<small>${rk?.label || ''}</small>`}</div></a>`;
   };
 
   return {
@@ -388,6 +389,7 @@ export function platinas(M){
           <div class="plat-count" data-count="${count}">0</div>
           <div style="color:var(--muted);font-weight:600;margin-top:4px">platinas conquistadas${games < list.length ? ` em ${games} jogos` : ''}${avgMin ? ` · média de ${fmtH(Math.round(avgMin))} por jogo` : ''}</div>
           ${doubles ? `<div style="color:var(--dim);font-size:12.5px;margin-top:4px">${doubles} jogos platinados em duas versões — cada platina aparece no seu ano, com a etiqueta da versão</div>` : ''}
+          ${manual.length ? `<div style="color:var(--dim);font-size:12.5px;margin-top:4px">+ ${manual.map(g => esc(g.name)).join(', ')}: sem platina na PSN, feito 100% — conta aqui como platinado</div>` : ''}
           ${rarest ? `<div style="margin-top:12px;font-size:14px">A mais rara: <b>${esc(rarest.g.name)}</b>${(rarest.g.plats?.length || 0) > 1 ? ` (${esc(rarest.platform)})` : ''} — <span class="r-${rarity(rarest.rate).k}" style="font-weight:800">${fmtPct(rarest.rate)}</span> dos jogadores</div>` : ''}
           ${withRate.length ? `<div class="rarity-bars">${Object.keys(buckets).map(k => `
             <div class="rb"><span>${labels[k]}</span><div class="rb-track"><i class="bg-${k}" data-w="${buckets[k] / max * 100}"></i></div><b>${buckets[k]}</b></div>`).join('')}</div>` : ''}
@@ -1050,7 +1052,7 @@ export function detail(M, g){
     ...(g.platforms || []).map(p => `<span class="tag">${esc(p)}</span>`),
     g.status === 'never' ? '<span class="tag never">NUNCA JOGADO</span>' : '',
     g.hidden ? '<span class="tag">🙈 OCULTO</span>' : '',
-    g.status === 'platinum' ? '<span class="tag" style="background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0">PLATINADO</span>' : '',
+    g.status === 'platinum' ? `<span class="tag" style="background:linear-gradient(135deg,#fff,#a9bddb);color:#0a0f1f;border:0">${g.platManual ? 'PLATINADO (100%)' : (g.plats?.length || 0) > 1 ? 'PLATINADO PS4 + PS5' : 'PLATINADO'}</span>` : '',
     g.plus ? '<span class="tag plus">PLUS</span>' : '',
     g.source === 'lista' ? '<span class="tag list">MINHA LISTA</span>' : '',
   ].join('');
@@ -1087,10 +1089,10 @@ export function detail(M, g){
           <div class="ix-meter">${meter}</div>
           <div class="ix-foot">${g.difficulty == null ? 'sem platina ou sem dados' : g.diffAuto != null && g.difficulty !== g.diffAuto ? `ajustada por você · estimativa ${num(g.diffAuto)}` : `${di.label} · estimada pela raridade da platina`}</div>
         </div>
-        <div class="glass ix">
+        <div class="glass ix" id="ixRate">
           <div class="ix-lbl">Jogadores com a platina</div>
           <div class="ix-val ${rate != null ? 'r-' + rarity(rate).k : ''}">${fmtPct(rate)}</div>
-          <div class="ix-foot">${rate != null ? `${rarity(rate).label} · dado oficial da PSN, conta todo mundo que abriu o jogo` : t ? 'este jogo não tem platina' : 'aparece depois que você abrir o jogo'}</div>
+          <div class="ix-foot">${rate != null ? `${rarity(rate).label} · dado oficial da PSN, conta todo mundo que abriu o jogo` : g.platManual ? 'não tem platina na PSN — você fez 100%' : t ? 'este jogo não tem platina' : 'aparece depois que você abrir o jogo'}</div>
         </div>
         <div class="glass ix" id="ixHours">
           <button class="ix-edit" data-edit="hours">editar</button>
@@ -1108,7 +1110,7 @@ export function detail(M, g){
         </div>
       </div>
 
-      ${t ? `<div class="glass journey">
+      ${t ? `<div class="glass journey" id="journey">
         ${ring(t.progress, { size: 92, th: 8, plat: g.status === 'platinum' })}
         <div>
           <div class="tcounts">
@@ -1171,16 +1173,66 @@ export function mountDetail(panel, M, g, ctx){
     inp.focus();
   }));
 
-  if (g.trophies) loadTrophies(g.trophies.id).then(list => {
+  // jogo com versão de PS4 e de PS5 (cada uma com a sua lista de troféus): botões pra trocar
+  const t0 = g.trophies;
+  const sets = t0 && g.otherSets?.length ? [
+    { id: t0.id, progress: t0.progress, plat: !!t0.plat?.earned,
+      platform: g.plats?.find(p => p.set === t0.id)?.platform || g.platforms?.find(p => !g.otherSets.some(o => o.platform === p)) || g.platforms?.[0] },
+    ...g.otherSets,
+  ] : [];
+  let cur = t0?.id, list = null, gv = g;
+  const verRow = () => sets.length ? `<div class="ver-row"><span class="ix-lbl">Versão</span><div class="chips">${sets.map(s =>
+    `<button class="chip ver-chip ${s.id === cur ? 'on' : ''}" data-ver="${esc(s.id)}">${esc((s.platform || '?').split(',')[0])}${s.plat
+      ? ` <i class="ver-t" title="Platinado">${trophySVG('platinum')}</i>` : ` <span>${s.progress ?? 0}%</span>`}</button>`).join('')}</div></div>` : '';
+  // outra versão: as partes (DLCs) saem da própria lista
+  const viewOf = (set, l) => {
+    if (set.id === t0.id) return g;
+    const ids = [...new Set(l.map(x => x.g || 'default'))];
+    const parts = ids.length > 1 ? ids.map((id, i) => ({ id, name: id === 'default' ? g.name : `DLC ${i}`,
+      defined: l.filter(x => (x.g || 'default') === id).length, earned: l.filter(x => (x.g || 'default') === id && x.e).length })) : [];
+    return { ...g, parts, collection: false, platManual: false };
+  };
+  // anel, contagem e % da platina acompanham a versão escolhida
+  const paintStats = (set, l) => {
+    const j = panel.querySelector('#journey');
+    if (j) {
+      const def = {}, got = {};
+      for (const x of l) { def[x.ty] = (def[x.ty] || 0) + 1; if (x.e) got[x.ty] = (got[x.ty] || 0) + 1; }
+      j.querySelector('.tcounts').innerHTML = ['platinum', 'gold', 'silver', 'bronze'].filter(k => def[k])
+        .map(k => `<span class="tc">${trophySVG(k)}${got[k] || 0}<small>/${def[k]}</small></span>`).join('');
+      j.firstElementChild.outerHTML = ring(set.progress ?? 0, { size: 92, th: 8, plat: set.plat });
+      animate(j, true);
+    }
+    const r = l.find(x => x.ty === 'platinum')?.r, ix = panel.querySelector('#ixRate .ix-val');
+    if (ix) { ix.className = `ix-val ${r != null ? 'r-' + rarity(r).k : ''}`; ix.textContent = fmtPct(r); }
+  };
+  const paint = (pid = '', tab = '') => {
     const road = panel.querySelector('#road');
     if (!road) return;
-    road.innerHTML = list?.length ? roadmap(list, g) : '<div class="glass note" style="margin-top:20px">Não achei a lista de troféus desse jogo — rode o sync de novo.</div>';
-    road.addEventListener('click', e => {
+    road.innerHTML = verRow() + (list?.length ? roadmap(list, gv, pid, tab) : '<div class="glass note" style="margin-top:20px">Não achei a lista de troféus desse jogo — rode o sync de novo.</div>');
+    animate(road);
+  };
+
+  if (g.trophies) loadTrophies(g.trophies.id).then(l => {
+    const road = panel.querySelector('#road');
+    if (!road) return;
+    list = l;
+    paint();
+    road.addEventListener('click', async e => {
+      const vb = e.target.closest('[data-ver]');
+      if (vb && vb.dataset.ver !== cur) {
+        const set = sets.find(s => s.id === vb.dataset.ver);
+        vb.disabled = true;
+        const l2 = await loadTrophies(set.id);
+        if (!l2?.length) { vb.disabled = false; return ctx.toast('Não achei a lista dessa versão — rode o sync de novo'); }
+        cur = set.id; list = l2; gv = viewOf(set, l2);
+        paint();
+        paintStats(set, l2);
+        return;
+      }
       const pc = e.target.closest('[data-pid]');
       if (pc) {
-        const tabNow = road.querySelector('[data-tab].on')?.dataset.tab || '';
-        road.innerHTML = roadmap(list, g, pc.dataset.pid, tabNow);
-        animate(road);
+        paint(pc.dataset.pid, road.querySelector('[data-tab].on')?.dataset.tab || '');
         return;
       }
       const tb = e.target.closest('[data-tab]');
@@ -1192,7 +1244,6 @@ export function mountDetail(panel, M, g, ctx){
       const m = e.target.closest('[data-more]');
       if (m) { m.previousElementSibling.querySelectorAll('.tro[hidden]').forEach(x => x.hidden = false); m.remove(); }
     });
-    animate(road);
   });
 }
 
@@ -1237,6 +1288,11 @@ function roadmap(list, g, pid = '', tabPref = ''){
         <div style="font-family:var(--display);font-weight:800;font-size:19px;margin-top:4px">${esc(plat.n)}</div>
         <div style="color:var(--muted);font-size:13px;margin-top:4px">${plat.e ? `Platinado em ${fmtDate(plat.at)} — você está entre os ${fmtPct(plat.r)} que conseguiram` : `${base.length} troféus ${!pid && !g.collection && groupParts.length ? "do jogo base " : ""}faltando · ${fmtPct(plat.r)} dos jogadores chegaram lá`}</div>
       </div></div>`
+    : g.platManual && !pending.length
+    ? `<div class="goal">${trophySVG('platinum', { shine: true })}<div>
+        <div style="font-size:11.5px;letter-spacing:1px;font-weight:700;color:var(--muted);text-transform:uppercase">Conquistada</div>
+        <div style="font-family:var(--display);font-weight:800;font-size:19px;margin-top:4px">100% completo</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px">Esse jogo não tem platina na PSN — aqui ele conta como platinado</div></div></div>`
     : `<div class="goal">${trophySVG('gold', { shine: true })}<div><div style="font-family:var(--display);font-weight:800;font-size:18px">Sem platina — objetivo é 100%</div>
         <div style="color:var(--muted);font-size:13px;margin-top:4px">${pending.length} troféus faltando</div></div></div>`;
 
